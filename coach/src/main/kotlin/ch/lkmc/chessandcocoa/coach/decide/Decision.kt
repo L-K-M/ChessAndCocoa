@@ -78,6 +78,8 @@ data class PlanConsideration(
     val policyMove: Move? = null,
     val policySan: String? = null,
     val assessment: PlanAssessment? = null,
+    /** For TOO_COSTLY: how far (centipawns) the best plan action fell short of the best move. */
+    val costCp: Int? = null,
 )
 
 /** A lifecycle change made during a decision. */

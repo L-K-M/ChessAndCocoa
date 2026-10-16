@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.session
 
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.Continuation
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -36,7 +39,10 @@ data class SessionState(
     val board: BoardSnapshot? = null,
     /** The player's move, shown while it is being assessed. */
     val pendingMove: Move? = null,
-    val event: TeachingEvent? = null,
+    /** Feedback for the current turn: on the player's last move, then any news from the opponent's reply. */
+    val events: List<TeachingEvent> = emptyList(),
+    /** The move list in SAN with move numbers, e.g. "1. e4 e5 2. Nf3". */
+    val notation: String = "",
     val hint: Hint? = null,
     val preferences: ExperiencePreferences = ExperiencePreferences(),
     val canContinue: Boolean = false,
@@ -71,6 +77,10 @@ class GameSession(
 
     private var work: Job? = null
     private var warmup: Job? = null
+    private var lastSave: Job? = null
+
+    /** One writer, first in first out: saves land in revision order. */
+    private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -79,7 +89,8 @@ class GameSession(
         }
     }
 
-    fun newGame(side: SideChoice, difficulty: Difficulty) {
+    /** Starts a game; [startFen] allows curated practice positions (concept Section 15.2). */
+    fun newGame(side: SideChoice, difficulty: Difficulty, startFen: String = Position.START_FEN) {
         cancelWork()
         val seed = seeds()
         val humanSide = when (side) {
@@ -87,8 +98,8 @@ class GameSession(
             SideChoice.BLACK -> Side.BLACK
             SideChoice.RANDOM -> if (seed and 1L == 0L) Side.WHITE else Side.BLACK
         }
-        val record = coach.newGame(UUID.randomUUID().toString(), humanSide, difficulty, seed, clock())
-        commit(record, event = null, hint = null)
+        val record = coach.newGame(UUID.randomUUID().toString(), humanSide, difficulty, seed, clock(), startFen)
+        commit(record, events = emptyList(), hint = null)
         continueGame(record)
     }
 
@@ -97,7 +108,7 @@ class GameSession(
         cancelWork()
         scope.launch {
             val saved = withContext(Dispatchers.IO) { store.latestUnfinished() } ?: return@launch
-            commit(saved, event = saved.events.lastOrNull(), hint = null)
+            commit(saved, events = saved.events.filter { it.ply >= saved.ply - 1 }, hint = null)
             continueGame(saved)
         }
     }
@@ -113,7 +124,7 @@ class GameSession(
             val result = runCatching { coach.playHumanMove(record, move, current.preferences, clock()) }
                 .getOrElse { failure -> return@launch fail(failure) }
             if (!stillCurrent(record)) return@launch
-            commit(result.record, result.event, hint = null)
+            commit(result.record, listOfNotNull(result.event), hint = null)
             continueGame(result.record)
         }
     }
@@ -134,24 +145,26 @@ class GameSession(
             val (next, hint) = runCatching { coach.hint(record, level, clock()) }
                 .getOrElse { failure -> return@launch fail(failure) }
             if (!stillCurrent(record)) return@launch
-            commit(next, current.event, hint)
+            commit(next, current.events, hint)
         }
     }
 
     /** Explicit takeback to the player's previous decision; never automatic (Section 4.4). */
     fun takeBack() {
-        val record = _state.value.record ?: return
+        val current = _state.value
+        val record = current.record ?: return
         cancelWork()
-        val restored = coach.takeBack(record, clock())
-        if (restored === record) return
-        commit(restored, event = null, hint = null)
+
+        // A move still being assessed is not in the record yet: taking it back just drops it.
+        val restored = if (current.phase == Phase.ASSESSING) record else coach.takeBack(record, clock())
+        commit(restored, events = if (restored === record) current.events else emptyList(), hint = null)
         continueGame(restored)
     }
 
     fun resign() {
         val record = _state.value.record ?: return
         cancelWork()
-        commit(coach.resign(record, clock()), event = null, hint = null)
+        commit(coach.resign(record, clock()), events = emptyList(), hint = null)
     }
 
     fun review(): GameReview? = _state.value.record?.let(coach::review)
@@ -181,13 +194,13 @@ class GameSession(
             val result = runCatching { coach.playComputerMove(record, preferences, clock()) }
                 .getOrElse { failure -> return@launch fail(failure) }
             if (!stillCurrent(record)) return@launch
-            // Keep the feedback on the player's move unless the opponent's move has its own news.
-            commit(result.record, result.event ?: _state.value.event, hint = null)
+            // Keep the feedback on the player's move; the opponent's news joins it.
+            commit(result.record, _state.value.events + listOfNotNull(result.event), hint = null)
             continueGame(result.record)
         }
     }
 
-    private fun commit(record: GameRecord, event: TeachingEvent?, hint: Hint?) {
+    private fun commit(record: GameRecord, events: List<TeachingEvent>, hint: Hint?) {
         val phase = when {
             record.outcome != null -> Phase.GAME_OVER
             record.isHumanTurn -> Phase.HUMAN_TURN
@@ -199,18 +212,44 @@ class GameSession(
                 record = record,
                 board = BoardSnapshot.of(record.game, record.humanSide, playable = phase == Phase.HUMAN_TURN),
                 pendingMove = null,
-                event = event,
+                events = events,
+                notation = notation(record),
                 hint = hint,
                 canContinue = record.outcome == null,
             )
         }
-        scope.launch(Dispatchers.IO) {
+        lastSave = scope.launch(saveDispatcher) {
             runCatching { store.save(record) }.onFailure { _state.update { it.copy(error = SessionError.SAVE_FAILED) } }
         }
     }
 
-    /** True while [record] is still the live revision; otherwise its result is stale and dropped. */
-    private fun stillCurrent(record: GameRecord): Boolean {
+    /** Waits until every save issued so far is on disk (for leaving the app, and tests). */
+    suspend fun flushSaves() {
+        lastSave?.join()
+    }
+
+    /** Numbered SAN, starting from the game's own first move number and side. */
+    private fun notation(record: GameRecord): String {
+        val game = record.game
+        val first = game.positions.first()
+        var number = first.fullmoveNumber
+        val sans = game.sanMoves()
+        return buildString {
+            sans.forEachIndexed { index, san ->
+                val white = (first.sideToMove == Side.WHITE) == (index % 2 == 0)
+                if (white) append("$number. ") else if (index == 0) append("$number... ")
+                append(san).append(' ')
+                if (!white) number++
+            }
+        }.trim()
+    }
+
+    /**
+     * True while [record] is still the live revision and the calling job was
+     * not cancelled; otherwise its result is stale and dropped (R11).
+     */
+    private suspend fun stillCurrent(record: GameRecord): Boolean {
+        if (!currentCoroutineContext().isActive) return false
         val live = _state.value.record ?: return false
         return live.gameId == record.gameId && live.revision == record.revision
     }

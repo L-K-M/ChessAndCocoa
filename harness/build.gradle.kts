@@ -19,6 +19,11 @@ application {
     mainClass.set("ch.lkmc.chessandcocoa.harness.MainKt")
 }
 
+// Runs from the repository root so default paths (build/, docs/) resolve.
+tasks.named<JavaExec>("run") {
+    workingDir = rootDir
+}
+
 dependencies {
     implementation(project(":coach"))
     implementation(libs.kotlinx.coroutines.core)

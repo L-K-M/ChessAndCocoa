@@ -52,7 +52,7 @@ object Reviews {
             val prior = record.decisions.lastOrNull { it.ply == assessment.ply - 1 }
             val plan = prior?.plan
             val claims = ClaimBuilder.forHumanMove(parent, assessment, prior, plan, emptyList())
-            val event = TeachingPolicy.select(claims, reviewPreferences, "review-${assessment.ply}", assessment.ply + 1, record.revision)
+            val event = TeachingPolicy.select(claims, reviewPreferences, "review-${assessment.ply}", assessment.ply + 1, record.revision, assessment.san)
                 ?: return@mapNotNull null
             if (TeachingPolicy.priority(event.claims.first()) < MOMENT_PRIORITY) return@mapNotNull null
             assessment.ply to ReviewMoment(assessment.ply, assessment.san, event.brief, event.tone)

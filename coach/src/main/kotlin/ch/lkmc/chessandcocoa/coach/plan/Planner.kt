@@ -54,7 +54,10 @@ object Planner {
                 .filter { target -> open.none { it.family == template.family && sameTarget(it.target, target) } }
                 // One idea per square: the more specific family (listed first) keeps it.
                 .filter { target -> proposals.none { it.target.square == target.square } && open.none { it.current.targetSquare == target.square } }
-                .forEach { target -> proposals += newEpisode(game, owner, template, target) }
+                .map { target -> newEpisode(game, owner, template, target) }
+                // Applicable only where the idea has at least one sound next step (Section 7.1).
+                .filter { episode -> template.actions(game, episode).isNotEmpty() }
+                .forEach { episode -> proposals += episode }
         }
         return proposals
     }

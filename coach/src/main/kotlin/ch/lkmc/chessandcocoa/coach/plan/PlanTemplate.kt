@@ -37,6 +37,13 @@ interface PlanTemplate {
     /** The goal predicate. REACHED requires material won or mate, checked against the game itself. */
     fun goal(game: Game, plan: PlanInstance): GoalState
 
+    /**
+     * Progress features (Section 7.1) folded into one comparable number for
+     * experiments, e.g. attackers minus defenders on the target. Higher is
+     * further along; never shown to players and never a probability.
+     */
+    fun progress(game: Game, plan: PlanInstance): Int
+
     companion object {
         /** Subgoal order for "how far along" comparisons and action ordering. */
         fun advancement(subgoal: Subgoal): Int = when (subgoal) {
@@ -57,6 +64,9 @@ interface PlanTemplate {
          * larger static exchange, then UCI order so the result is deterministic.
          */
         fun order(position: Position, actions: List<PlanAction>, limit: Int): List<PlanAction> = actions
+            // A step that simply hands over the moving piece is no step: static exchange first,
+            // the engine judges the rest.
+            .filter { position.see(it.move) >= 0 }
             .sortedWith(
                 compareByDescending<PlanAction> { advancement(it.subgoal) }
                     .thenByDescending { position.play(it.move).isCheckmate() }

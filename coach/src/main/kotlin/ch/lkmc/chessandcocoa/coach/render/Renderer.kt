@@ -135,6 +135,10 @@ object Renderer {
 
     fun moveNumber(ply: Int): Int = ply / 2 + 1
 
+    /** "12. Nf3" for White's move, "12... Nf6" for Black's, using the game's own move numbers. */
+    fun moveLabel(fullmoveNumber: Int, whiteMoved: Boolean, san: String): String =
+        if (whiteMoved) "$fullmoveNumber. $san" else "$fullmoveNumber... $san"
+
     private fun pawns(cp: Int): String {
         val tenths = (cp + 5) / 10
         val whole = tenths / 10

@@ -93,7 +93,6 @@
     <string name="settings_numbers_desc">Adds rough pawn values to explanations.</string>
     <string name="settings_coordinates">Board coordinates</string>
     <string name="settings_contrast">High-contrast board</string>
-    <string name="settings_motion">Reduce motion</string>
     <string name="settings_separate_note">These settings never change how strongly I play or how carefully moves are checked.</string>
 
     <!-- About and notices (concept Section 14.4 release gate) -->
@@ -113,6 +112,8 @@
     <string name="square_empty">%1$s, empty</string>
     <string name="square_piece">%1$s, %2$s</string>
     <string name="piece_named">%1$s %2$s</string>
+    <string name="color_white">white</string>
+    <string name="color_black">black</string>
     <string name="piece_pawn">pawn</string>
     <string name="piece_knight">knight</string>
     <string name="piece_bishop">bishop</string>

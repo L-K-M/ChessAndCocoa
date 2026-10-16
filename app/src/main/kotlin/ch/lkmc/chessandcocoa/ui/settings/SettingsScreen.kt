@@ -55,7 +55,6 @@ fun SettingsScreen(preferences: ExperiencePreferences, onChange: (ExperiencePref
             Toggle(stringResource(R.string.settings_numbers), preferences.showNumbers, stringResource(R.string.settings_numbers_desc)) { onChange(preferences.copy(showNumbers = it)) }
             Toggle(stringResource(R.string.settings_coordinates), preferences.showCoordinates) { onChange(preferences.copy(showCoordinates = it)) }
             Toggle(stringResource(R.string.settings_contrast), preferences.highContrastBoard) { onChange(preferences.copy(highContrastBoard = it)) }
-            Toggle(stringResource(R.string.settings_motion), preferences.reduceMotion) { onChange(preferences.copy(reduceMotion = it)) }
 
             Text(stringResource(R.string.settings_separate_note), style = MaterialTheme.typography.bodySmall)
         }

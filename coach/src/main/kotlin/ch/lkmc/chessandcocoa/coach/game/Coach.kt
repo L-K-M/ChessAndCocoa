@@ -15,6 +15,7 @@ import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
+import ch.lkmc.chessandcocoa.coach.render.Renderer
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
 import ch.lkmc.chessandcocoa.coach.teach.Hint
@@ -88,7 +89,8 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
 
         val assessment = assessor.assess(parent, move, prior, priorPlan, record.difficulty.planWindowCp, record.assistedAt(ply))
         val claims = ClaimVerifier.verified(ClaimBuilder.forHumanMove(parent, assessment, prior, priorPlan, emptyList()), parent.play(move))
-        val event = TeachingPolicy.select(claims, preferences, "e-${record.branchId}-$ply", ply + 1, record.revision + 1)
+        val label = moveLabel(parent.current, move)
+        val event = TeachingPolicy.select(claims, preferences, "e-${record.branchId}-$ply", ply + 1, record.revision + 1, label)
 
         val revealed = event?.claims?.filterIsInstance<Claim.PlanRevealed>()?.map { it.episodeId }.orEmpty()
         val next = record.copy(
@@ -131,7 +133,8 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
                     add(Claim.PlanTransitionClaim(episode.family, episode.current.targetSquare, transition.reason))
                 }
         }
-        val event = TeachingPolicy.select(claims, preferences, "e-${record.branchId}-${game.ply}", game.ply + 1, record.revision + 1)
+        val label = moveLabel(game.current, decision.move)
+        val event = TeachingPolicy.select(claims, preferences, "e-${record.branchId}-${game.ply}", game.ply + 1, record.revision + 1, label)
 
         val next = record.copy(
             revision = record.revision + 1,
@@ -195,6 +198,9 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
 
     /** The last decision recorded before the current position, for evidence views. */
     fun decisionBefore(record: GameRecord): DecisionRecord? = record.lastDecision
+
+    private fun moveLabel(position: Position, move: Move): String =
+        Renderer.moveLabel(position.fullmoveNumber, position.sideToMove == Side.WHITE, position.san(move))
 
     /** The ply of the human's most recent decision point strictly before now, or null when there is none. */
     private fun previousHumanPly(record: GameRecord): Int? {

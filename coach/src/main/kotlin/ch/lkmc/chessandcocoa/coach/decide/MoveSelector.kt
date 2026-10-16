@@ -167,7 +167,14 @@ class MoveSelector(private val searcher: Searcher, private val budgets: AnalystB
         accepted: MutableList<Accepted>,
     ) {
         when (val choice = policy.choose(game, plan, difficulty.planWindowCp)) {
-            is PolicyChoice.Blocked -> considered += consideration(plan, outcomeOf(choice.reason))
+            is PolicyChoice.Blocked -> {
+                val cost = if (choice.bestActionScore != null && choice.referenceScore != null) {
+                    ScoreMath.lossCp(choice.referenceScore, choice.bestActionScore)
+                } else {
+                    null
+                }
+                considered += consideration(plan, outcomeOf(choice.reason)).copy(costCp = cost)
+            }
             is PolicyChoice.Act -> {
                 val assessment = probe.probe(game, plan, choice, difficulty.planWindowCp)
                 val san = game.current.san(choice.action.move)

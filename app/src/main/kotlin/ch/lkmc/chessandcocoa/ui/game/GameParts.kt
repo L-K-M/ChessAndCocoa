@@ -69,6 +69,9 @@ fun FeedbackCard(event: TeachingEvent, hidden: Boolean, onToggle: () -> Unit, on
         Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(6.dp).fillMaxHeight().background(accent))
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (event.moveLabel.isNotEmpty()) {
+                    Text(event.moveLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (!hidden) {
                     Text(
                         event.brief,

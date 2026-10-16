@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -168,10 +169,11 @@ private fun SquareCell(
             )
         }
         fileLabel?.let {
-            Text(it, color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 2.dp))
+            // Coordinates are visual aids; the square's own description already names it.
+            Text(it, color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 2.dp).clearAndSetSemantics {})
         }
         rankLabel?.let {
-            Text(it, color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).padding(start = 2.dp))
+            Text(it, color = labelColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).padding(start = 2.dp).clearAndSetSemantics {})
         }
     }
 }
@@ -184,7 +186,7 @@ private fun squareDescription(square: Square, piece: Piece?): String {
 
 @Composable
 fun pieceName(piece: Piece): String {
-    val side = stringResource(if (piece.side == Side.WHITE) R.string.side_white else R.string.side_black)
+    val side = stringResource(if (piece.side == Side.WHITE) R.string.color_white else R.string.color_black)
     val type = stringResource(
         when (piece.type) {
             PieceType.PAWN -> R.string.piece_pawn

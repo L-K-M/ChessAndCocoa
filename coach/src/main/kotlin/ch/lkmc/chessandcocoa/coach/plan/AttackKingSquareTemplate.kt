@@ -32,6 +32,9 @@ object AttackKingSquareTemplate : PlanTemplate {
     private const val MAX_ACTIONS = 6
     private const val MAX_CHALLENGES = 8
 
+    /** Progress score once the strike has mated or won material. */
+    private const val REACHED_PROGRESS = 10
+
     override fun bind(game: Game, owner: Side): List<PlanTarget> {
         val position = game.current
         val enemy = owner.opposite
@@ -110,6 +113,16 @@ object AttackKingSquareTemplate : PlanTemplate {
                 Facts.effectiveAttackers(after, square, plan.owner).size < attackers.size ||
                 attackers.any { it in after.attackedSquares(move.to) }
         }.sortedBy { it.uci }.take(MAX_CHALLENGES)
+    }
+
+    override fun progress(game: Game, plan: PlanInstance): Int {
+        if (goal(game, plan) == GoalState.REACHED) return REACHED_PROGRESS
+        val position = game.current
+        val square = plan.target.square
+        val attackers = Facts.effectiveAttackers(position, square, plan.owner).size
+        val guards = nonKingDefenders(position, square, plan.owner.opposite).size
+        val threat = if (Facts.threatenedMates(position, plan.owner).any { it.to == square }) 1 else 0
+        return attackers - guards + threat
     }
 
     override fun goal(game: Game, plan: PlanInstance): GoalState {

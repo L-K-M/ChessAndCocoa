@@ -28,6 +28,9 @@ object WinWeakUnitTemplate : PlanTemplate {
     /** A target may be defended once more than it is attacked and still be worth pressing. */
     private const val MAX_DEFICIT = 1
 
+    /** Progress score once the unit has been won. */
+    private const val REACHED_PROGRESS = 10
+
     override fun bind(game: Game, owner: Side): List<PlanTarget> {
         val position = game.current
         val enemy = owner.opposite
@@ -128,6 +131,14 @@ object WinWeakUnitTemplate : PlanTemplate {
             Facts.defenders(after, target).size > defendersBefore ||
                 Facts.effectiveAttackers(after, target, plan.owner).size < attackers.size
         }.sortedBy { it.uci }.take(MAX_CHALLENGES)
+    }
+
+    override fun progress(game: Game, plan: PlanInstance): Int {
+        val target = locate(game, plan) ?: return if (goal(game, plan) == GoalState.REACHED) REACHED_PROGRESS else 0
+        val position = game.current
+        val pressure = Facts.effectiveAttackers(position, target, plan.owner).size - Facts.defenders(position, target).size
+        val pinned = if (target in position.pinnedPieces(plan.owner.opposite)) 1 else 0
+        return pressure + pinned
     }
 
     override fun goal(game: Game, plan: PlanInstance): GoalState {

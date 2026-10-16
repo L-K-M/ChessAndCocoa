@@ -35,7 +35,6 @@ data class ExperiencePreferences(
     val commentary: CommentaryLevel = CommentaryLevel.NORMAL,
     val disclosure: DisclosureSetting = DisclosureSetting.AFTER_CHOICE,
     val showNumbers: Boolean = false,
-    val reduceMotion: Boolean = false,
     val showCoordinates: Boolean = true,
     /** A plainer, higher-contrast board for readability (Section 4.5). */
     val highContrastBoard: Boolean = false,
@@ -57,6 +56,8 @@ data class TeachingEvent(
     val ply: Int,
     val revision: Int,
     val tone: Tone,
+    /** The move the event is about, e.g. "3. Qf3" or "3... Nf6". */
+    val moveLabel: String,
     val brief: String,
     val expanded: List<String>,
     val marks: List<MarkedSquare>,
@@ -78,6 +79,7 @@ object TeachingPolicy {
         id: String,
         ply: Int,
         revision: Int,
+        moveLabel: String = "",
     ): TeachingEvent? {
         val visible = claims.filter { visible(it, preferences) }
         val primary = visible.maxByOrNull { priority(it) } ?: return null
@@ -103,6 +105,7 @@ object TeachingPolicy {
             ply = ply,
             revision = revision,
             tone = tone(primary),
+            moveLabel = moveLabel,
             brief = brief,
             expanded = secondary.map { Renderer.render(it, numbers) },
             marks = (primary.marks + (if (primary is Claim.PlanImpact) revealed?.marks.orEmpty() else emptyList())).distinct(),

@@ -24,9 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ import ch.lkmc.chessandcocoa.R
 import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.GameSession
 import ch.lkmc.chessandcocoa.session.Phase
 import ch.lkmc.chessandcocoa.session.SessionError
@@ -66,27 +69,40 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
     val record = state.record ?: return
     val board = state.board ?: return
 
-    var selected by remember(record.revision, state.phase) { mutableStateOf<Square?>(null) }
-    var promotion by remember(record.revision) { mutableStateOf<List<Move>>(emptyList()) }
-    var evidenceOpen by remember(state.event?.id) { mutableStateOf(false) }
+    // Selection and the tap handler outlive recompositions of individual squares, so they read
+    // the live board through rememberUpdatedState instead of capturing a stale snapshot.
+    var selected by remember { mutableStateOf<Square?>(null) }
+    var promotion by remember { mutableStateOf<List<Move>>(emptyList()) }
+    var evidenceFor by remember { mutableStateOf<TeachingEvent?>(null) }
     var resignAsked by remember { mutableStateOf(false) }
-    var feedbackHidden by remember(state.event?.id) { mutableStateOf(false) }
+    var feedbackHidden by remember(state.events.firstOrNull()?.id) { mutableStateOf(false) }
+    val liveBoard by rememberUpdatedState(board)
+    val livePhase by rememberUpdatedState(state.phase)
 
-    fun onTap(square: Square) {
-        if (state.phase != Phase.HUMAN_TURN) return
-        val from = selected
-        if (from != null) {
-            val moves = board.legalMoves[from].orEmpty().filter { it.to == square }
+    LaunchedEffect(record.revision, state.phase) {
+        selected = null
+        promotion = emptyList()
+    }
+
+    val onTap: (Square) -> Unit = remember {
+        { square ->
+            val from = selected
+            val moves = from?.let { liveBoard.legalMoves[it] }.orEmpty().filter { it.to == square }
             when {
-                moves.size == 1 -> { session.play(moves.single()); selected = null; return }
-                moves.size > 1 -> { promotion = moves; return }
+                livePhase != Phase.HUMAN_TURN -> Unit
+                moves.size == 1 -> {
+                    selected = null
+                    session.play(moves.single())
+                }
+                moves.size > 1 -> promotion = moves
+                else -> selected = if (square != from && liveBoard.legalMoves.containsKey(square)) square else null
             }
         }
-        selected = if (square != from && board.legalMoves.containsKey(square)) square else null
     }
 
     val marks: List<MarkedSquare> = buildList {
-        if (!feedbackHidden) state.event?.let { addAll(it.marks) }
+        // Only events about the position on the board mark it; older ones replay in "Show me why".
+        if (!feedbackHidden) state.events.filter { it.ply == record.ply }.forEach { addAll(it.marks) }
         state.hint?.let { addAll(it.marks) }
     }
 
@@ -109,15 +125,16 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
                     marks = marks,
                     coordinates = if (state.preferences.showCoordinates) Coordinates.SHOWN else Coordinates.HIDDEN,
                     style = if (state.preferences.highContrastBoard) BoardStyle.HIGH_CONTRAST else BoardStyle.COCOA,
-                    onSquareTap = ::onTap,
+                    onSquareTap = onTap,
                 )
             }
             val panel: @Composable (Modifier) -> Unit = { modifier ->
                 SidePanel(
                     state = state,
+                    showStatus = wide,
                     feedbackHidden = feedbackHidden,
                     onToggleFeedback = { feedbackHidden = !feedbackHidden },
-                    onShowWhy = { evidenceOpen = true },
+                    onShowWhy = { evidenceFor = it },
                     onHint = session::hint,
                     onTakeBack = session::takeBack,
                     onReview = navigation.onReview,
@@ -142,9 +159,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
     if (promotion.isNotEmpty()) {
         PromotionDialog(promotion, board.sideToMove, onChoose = { move -> promotion = emptyList(); selected = null; session.play(move) }, onDismiss = { promotion = emptyList() })
     }
-    if (evidenceOpen) {
-        state.event?.let { event -> EvidenceSheet(event, session, onDismiss = { evidenceOpen = false }) }
-    }
+    evidenceFor?.let { event -> EvidenceSheet(event, session, onDismiss = { evidenceFor = null }) }
     if (resignAsked) {
         AlertDialog(
             onDismissRequest = { resignAsked = false },
@@ -182,9 +197,10 @@ private fun GameMenu(state: SessionState, navigation: GameNavigation, onResign: 
 @Composable
 private fun SidePanel(
     state: SessionState,
+    showStatus: Boolean,
     feedbackHidden: Boolean,
     onToggleFeedback: () -> Unit,
-    onShowWhy: () -> Unit,
+    onShowWhy: (TeachingEvent) -> Unit,
     onHint: () -> Unit,
     onTakeBack: () -> Unit,
     onReview: () -> Unit,
@@ -192,10 +208,10 @@ private fun SidePanel(
 ) {
     val record = state.record ?: return
     Column(modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (state.board != null && state.phase == Phase.GAME_OVER) StatusLine(state)
+        if (showStatus) StatusLine(state)
 
-        state.event?.let { event ->
-            FeedbackCard(event, hidden = feedbackHidden, onToggle = onToggleFeedback, onShowWhy = onShowWhy)
+        state.events.forEach { event ->
+            FeedbackCard(event, hidden = feedbackHidden, onToggle = onToggleFeedback, onShowWhy = { onShowWhy(event) })
         }
         state.hint?.let { hint -> HintCard(hint) }
 
@@ -212,7 +228,7 @@ private fun SidePanel(
             }
         }
 
-        MoveList(record.game.sanMoves())
+        MoveList(state.notation)
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -242,11 +258,10 @@ fun StatusLine(state: SessionState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MoveList(sans: List<String>) {
-    if (sans.isEmpty()) return
-    val pairs = sans.chunked(2).mapIndexed { index, pair -> "${index + 1}. ${pair.joinToString(" ")}" }
+private fun MoveList(notation: String) {
+    if (notation.isEmpty()) return
     Column {
         Text(stringResource(R.string.moves_title), style = MaterialTheme.typography.labelLarge)
-        Text(pairs.joinToString("   "), style = MaterialTheme.typography.bodyMedium)
+        Text(notation, style = MaterialTheme.typography.bodyMedium)
     }
 }
