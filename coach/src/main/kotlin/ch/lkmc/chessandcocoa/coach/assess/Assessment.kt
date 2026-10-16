@@ -74,7 +74,14 @@ sealed interface TacticalFinding {
     /** A clearly better capture or mate was available. */
     @Serializable
     @SerialName("missed_win")
-    data class MissedWin(val move: Move, val san: String, val mate: Boolean, val captured: Piece?) : TacticalFinding
+    data class MissedWin(
+        val move: Move,
+        val san: String,
+        val mate: Boolean,
+        val captured: Piece?,
+        /** Evidence: the winning line, starting with [move]. */
+        val line: List<Move>,
+    ) : TacticalFinding
 
     /** The move captures material that the static exchange keeps. */
     @Serializable

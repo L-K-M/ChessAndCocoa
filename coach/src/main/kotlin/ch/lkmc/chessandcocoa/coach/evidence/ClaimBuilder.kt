@@ -100,7 +100,7 @@ object ClaimBuilder {
             mate = finding.mate,
             captured = finding.captured?.type,
             marks = listOf(MarkedSquare(finding.move.from, SquareRole.MOVED), MarkedSquare(finding.move.to, SquareRole.TARGET)),
-            continuation = continuation(parent, listOf(finding.move)),
+            continuation = continuation(parent, finding.line.ifEmpty { listOf(finding.move) }),
         )
 
         is TacticalFinding.WinsMaterial -> Claim.WinsMaterial(finding.captured.type, finding.square, listOf(MarkedSquare(finding.square, SquareRole.TARGET)))

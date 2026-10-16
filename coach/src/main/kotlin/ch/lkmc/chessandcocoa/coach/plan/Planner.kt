@@ -47,12 +47,17 @@ object Planner {
      * New episodes [owner] could start here, excluding targets an open
      * episode already pursues. Ids are deterministic so replays match.
      */
-    fun propose(game: Game, owner: Side, open: List<PlanInstance>): List<PlanInstance> =
-        PlanTemplate.all.flatMap { template ->
+    fun propose(game: Game, owner: Side, open: List<PlanInstance>): List<PlanInstance> {
+        val proposals = mutableListOf<PlanInstance>()
+        for (template in PlanTemplate.all) {
             template.bind(game, owner)
                 .filter { target -> open.none { it.family == template.family && sameTarget(it.target, target) } }
-                .map { target -> newEpisode(game, owner, template, target) }
+                // One idea per square: the more specific family (listed first) keeps it.
+                .filter { target -> proposals.none { it.target.square == target.square } && open.none { it.current.targetSquare == target.square } }
+                .forEach { target -> proposals += newEpisode(game, owner, template, target) }
         }
+        return proposals
+    }
 
     private fun newEpisode(game: Game, owner: Side, template: PlanTemplate, target: PlanTarget): PlanInstance {
         val ply = game.ply

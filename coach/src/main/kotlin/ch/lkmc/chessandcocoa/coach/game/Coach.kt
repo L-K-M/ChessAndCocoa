@@ -13,6 +13,7 @@ import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.decide.MoveSelector
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
+import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
@@ -86,7 +87,7 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
         val ply = parent.ply
 
         val assessment = assessor.assess(parent, move, prior, priorPlan, record.difficulty.planWindowCp, record.assistedAt(ply))
-        val claims = ClaimBuilder.forHumanMove(parent, assessment, prior, priorPlan, emptyList())
+        val claims = ClaimVerifier.verified(ClaimBuilder.forHumanMove(parent, assessment, prior, priorPlan, emptyList()), parent.play(move))
         val event = TeachingPolicy.select(claims, preferences, "e-${record.branchId}-$ply", ply + 1, record.revision + 1)
 
         val revealed = event?.claims?.filterIsInstance<Claim.PlanRevealed>()?.map { it.episodeId }.orEmpty()

@@ -112,7 +112,8 @@ class PlanImpactAssessor(private val searcher: Searcher, private val budgets: An
 
         val ignoring = parent.current.legalMoves().filter { it != played && !addresses(parent, it, plan) }
         if (ignoring.isEmpty()) return null
-        val search = searcher.search(parent, budgets.assessNodes, searchMoves = ignoring)
+        // Only picks the baseline move, so the cheaper policy budget is enough.
+        val search = searcher.search(parent, budgets.policyNodes, searchMoves = ignoring)
         return search.result.best?.let { Move.parseUci(it.move) }
     }
 

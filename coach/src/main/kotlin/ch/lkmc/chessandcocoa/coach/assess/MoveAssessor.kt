@@ -49,11 +49,11 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         val side = position.sideToMove
 
         val root = analyzeDecision(parent)
-        val played = playedScore(parent, root, move)
+        val played = playedLine(parent, root, move)
         val quality = quality(parent, root, move, played)
         val after = parent.play(move)
 
-        val tactics = tactics(parent, after, root, move, quality, prior)
+        val tactics = tactics(parent, after, root, move, quality, played, prior)
         val impact = priorPlan?.takeIf { it.isOpen && after.outcome() == null }?.let {
             impactAssessor.assess(parent, move, it, prior, root, planWindowCp)
         }
@@ -88,22 +88,25 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         )
     }
 
-    /** The played move's score, from the shared root search or a restricted one at the same budget. */
-    private suspend fun playedScore(parent: Game, root: GameSearch, move: Move): Pair<Score, Boolean> {
+    /** The played move's line, from the shared root search or a restricted one at the same budget. */
+    private suspend fun playedLine(parent: Game, root: GameSearch, move: Move): PlayedLine {
         val side = parent.current.sideToMove
-        root.lineFor(move)?.let { return root.score(it, side) to false }
+        root.lineFor(move)?.let { return PlayedLine(root.score(it, side), it.pv.map(Move::parseUci), separate = false) }
         val restricted = searcher.search(parent, budgets.assessNodes, searchMoves = listOf(move))
-        val line = restricted.result.best ?: return (root.bestScore(side) ?: Score.Centipawns(0)) to true
-        return restricted.score(line, side) to true
+        val line = restricted.result.best ?: return PlayedLine(root.bestScore(side) ?: Score.Centipawns(0), emptyList(), separate = true)
+        return PlayedLine(restricted.score(line, side), line.pv.map(Move::parseUci), separate = true)
     }
 
-    private fun quality(parent: Game, root: GameSearch, move: Move, played: Pair<Score, Boolean>): QualityAssessment {
+    private data class PlayedLine(val score: Score, val pv: List<Move>, val separate: Boolean)
+
+    private fun quality(parent: Game, root: GameSearch, move: Move, played: PlayedLine): QualityAssessment {
         val position = parent.current
         val side = position.sideToMove
         val bestLine = root.result.lines.first()
         val bestMove = Move.parseUci(bestLine.move)
         val bestScore = root.score(bestLine, side)
-        val (playedScore, separate) = played
+        val playedScore = played.score
+        val separate = played.separate
 
         // A separate search that rates the move above the best one contradicts it: no loss, lower confidence.
         val contradicts = separate && playedScore.rank() > bestScore.rank()
@@ -127,6 +130,7 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         root: GameSearch,
         move: Move,
         quality: QualityAssessment,
+        playedLine: PlayedLine,
         prior: DecisionRecord?,
     ): List<TacticalFinding> {
         val position = parent.current
@@ -146,12 +150,12 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         // Analysis-supported: a longer forced mate.
         val played = quality.playedScore
         if (findings.isEmpty() && played is Score.Mate && played.moves < 0 && !ScoreMath.isLosingMate(quality.bestScore)) {
-            val line = root.lineFor(move)?.pv?.map(Move::parseUci).orEmpty()
+            val line = playedLine.pv
             findings += TacticalFinding.AllowsForcedMate(-played.moves, line, sanLine(position, line))
         }
 
-        exposedPiece(parent, after, root, move, quality)?.let { findings += it }
-        missedWin(parent, quality)?.let { findings += it }
+        exposedPiece(after, playedLine, quality)?.let { findings += it }
+        missedWin(parent, root, quality)?.let { findings += it }
 
         if (position.isCapture(move) && position.see(move) > 0 && quality.category <= QualityCategory.GOOD) {
             val captured = position.capturedPiece(move)!!
@@ -170,17 +174,10 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
     }
 
     /** The engine's expected reply captures a piece the move left exposed. */
-    private fun exposedPiece(
-        parent: Game,
-        after: Game,
-        root: GameSearch,
-        move: Move,
-        quality: QualityAssessment,
-    ): TacticalFinding.LeavesPieceExposed? {
+    private fun exposedPiece(after: Game, playedLine: PlayedLine, quality: QualityAssessment): TacticalFinding.LeavesPieceExposed? {
         val loss = quality.lossCp ?: return null
         if (loss < EXPOSED_LOSS_CP) return null
-        val line = root.lineFor(move)?.pv ?: return null
-        val reply = line.getOrNull(1)?.let(Move::parseUci) ?: return null
+        val reply = playedLine.pv.getOrNull(1) ?: return null
 
         val next = after.current
         if (!next.isLegal(reply) || !next.isCapture(reply) || next.see(reply) <= 0) return null
@@ -192,17 +189,18 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         return TacticalFinding.LeavesPieceExposed(square, captured, reply, next.san(reply), undefended)
     }
 
-    private fun missedWin(parent: Game, quality: QualityAssessment): TacticalFinding.MissedWin? {
+    private fun missedWin(parent: Game, root: GameSearch, quality: QualityAssessment): TacticalFinding.MissedWin? {
         val loss = quality.lossCp
         val position = parent.current
         val best = quality.bestMove
         if (quality.category < QualityCategory.MISTAKE) return null
 
         if (ScoreMath.isWinningMate(quality.bestScore) && !ScoreMath.isWinningMate(quality.playedScore)) {
-            return TacticalFinding.MissedWin(best, quality.bestSan, mate = true, captured = null)
+            val line = root.result.best?.pv?.map(Move::parseUci).orEmpty()
+            return TacticalFinding.MissedWin(best, quality.bestSan, mate = true, captured = null, line = line)
         }
         if (loss != null && position.isCapture(best) && position.see(best) >= PieceType.KNIGHT.value) {
-            return TacticalFinding.MissedWin(best, quality.bestSan, mate = false, captured = position.capturedPiece(best))
+            return TacticalFinding.MissedWin(best, quality.bestSan, mate = false, captured = position.capturedPiece(best), line = listOf(best))
         }
         return null
     }

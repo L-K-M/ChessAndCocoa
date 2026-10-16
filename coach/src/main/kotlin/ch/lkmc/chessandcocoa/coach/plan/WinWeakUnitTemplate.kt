@@ -43,9 +43,10 @@ object WinWeakUnitTemplate : PlanTemplate {
                 // Already winnable now is a tactic, not a plan (Section 2.3).
                 if ((Facts.bestCaptureSee(position, square, owner) ?: 0) > 0) return@mapNotNull null
 
+                // Already under fire and no better defended than attacked (or pinned):
+                // one more attacker or one defender fewer makes it winnable.
                 val pressed = attackers >= 1 && (pinned || defenders - attackers <= 0)
-                val loose = attackers == 0 && defenders == 0 && piece.type.value >= PieceType.KNIGHT.value
-                if (!pressed && !loose) return@mapNotNull null
+                if (!pressed) return@mapNotNull null
 
                 val priority = (if (pinned) 1000 else 0) + (attackers - defenders) * 100 + piece.type.value
                 Triple(square, piece.type, priority)
@@ -87,8 +88,9 @@ object WinWeakUnitTemplate : PlanTemplate {
         val pinsBefore = position.pinnedPieces(enemy).keys
 
         val actions = position.legalMoves().mapNotNull { move ->
+            // Only a capture that keeps material wins the unit; an even trade does not.
             if (move.to == target) {
-                return@mapNotNull if (position.see(move) >= 0) PlanAction(move, Subgoal.STRIKE) else null
+                return@mapNotNull if (position.see(move) > 0) PlanAction(move, Subgoal.STRIKE) else null
             }
             if (move.to in defenders && position.isCapture(move)) {
                 return@mapNotNull if (position.see(move) >= 0) PlanAction(move, Subgoal.REMOVE_DEFENDER) else null

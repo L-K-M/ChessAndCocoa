@@ -25,9 +25,9 @@ data class AnalystBudgets(
     /** Root analysis of the human's decision: quality of the played move. */
     val assessNodes: Long = 250_000,
     /** Plan-policy searches, live and in probes alike (policy identity). */
-    val policyNodes: Long = 60_000,
+    val policyNodes: Long = 50_000,
     /** The opponent-reply search inside a plan probe. */
-    val probeReplyNodes: Long = 90_000,
+    val probeReplyNodes: Long = 70_000,
     /** Candidate moves compared in an assessment. */
     val assessMultiPv: Int = 3,
     /** Strong replies tested per plan probe, before the template challenge. */
