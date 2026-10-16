@@ -19,9 +19,11 @@ dependencies {
     api(project(":chess"))
     api(project(":engine"))
     implementation(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 // Engine-backed tests run against a host Stockfish built by
