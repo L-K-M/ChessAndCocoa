@@ -81,6 +81,7 @@ object Renderer {
         val aim = when (claim.family) {
             PlanFamily.ATTACK_KING_SQUARE -> "I was building an attack on ${claim.target}, a square only your king defended"
             PlanFamily.WIN_WEAK_UNIT -> "I was trying to win your ${name(claim.targetPiece)} on ${claim.target}"
+            PlanFamily.PROMOTE_PASSED_PAWN -> "I was escorting my passed pawn on ${claim.target} toward promotion"
         }
         val step = claim.intendedSan?.let { " and was preparing $it" } ?: ""
         val role = if (claim.planWasReason) " That is why I played my last move." else " My last move also fit that idea."

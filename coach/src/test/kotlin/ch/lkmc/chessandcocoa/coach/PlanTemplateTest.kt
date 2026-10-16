@@ -9,6 +9,7 @@ import ch.lkmc.chessandcocoa.coach.plan.GoalState
 import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
 import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
 import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
+import ch.lkmc.chessandcocoa.coach.plan.PassedPawnTemplate
 import ch.lkmc.chessandcocoa.coach.plan.PlanTemplate
 import ch.lkmc.chessandcocoa.coach.plan.Planner
 import ch.lkmc.chessandcocoa.coach.plan.Subgoal
@@ -96,6 +97,24 @@ class PlanTemplateTest {
         // After O-O the king on g8 still guards f7, but f7 is no longer "only the king's":
         // the rook on f8 defends it now, so the plan's weak-square dependency is broken.
         assertEquals(PlanStatus.ABANDONED, updated.status)
+    }
+
+    @Test
+    fun aPassedPawnIsEscortedAndCompletesOnPromotion() {
+        // White's d-pawn has no black pawn ahead on the c, d or e files.
+        val game = ch.lkmc.chessandcocoa.chess.Game.new("6k1/5ppp/8/3P4/8/8/5PPP/6K1 w - - 0 1")
+        val plan = Planner.propose(game, Side.WHITE, emptyList()).single { it.family == PlanFamily.PROMOTE_PASSED_PAWN }
+        assertEquals(Square.parse("d5"), plan.target.square)
+        val actions = PassedPawnTemplate.actions(game, plan).associate { game.current.san(it.move) to it.subgoal }
+        assertEquals(Subgoal.ADVANCE, actions["d6"])
+
+        // The pawn queens and keeps its material: reached, judged by material, not by the template.
+        val queened = ch.lkmc.chessandcocoa.chess.Game.new("k7/3P1ppp/8/8/8/8/5PPP/6K1 w - - 0 1")
+        val nearPlan = Planner.propose(queened, Side.WHITE, emptyList()).single { it.family == PlanFamily.PROMOTE_PASSED_PAWN }
+        val promote = PassedPawnTemplate.actions(queened, nearPlan).first()
+        assertEquals(Subgoal.STRIKE, promote.subgoal)
+        val after = queened.play(promote.move).play(queened.play(promote.move).current.parseSan("Kb7"))
+        assertEquals(GoalState.REACHED, PassedPawnTemplate.goal(after, nearPlan))
     }
 
     private fun scholarPlan(): PlanInstance {

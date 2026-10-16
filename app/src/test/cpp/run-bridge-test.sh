@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-bridge-test.sh — host-side smoke test of the JNI streambuf bridge.
+# run-bridge-test.sh: host-side smoke test of the JNI streambuf bridge.
 #
 # Usage: app/src/test/cpp/run-bridge-test.sh
 #

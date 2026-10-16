@@ -50,12 +50,13 @@ interface PlanTemplate {
             Subgoal.STRIKE -> 5
             Subgoal.CREATE_THREAT -> 4
             Subgoal.REMOVE_DEFENDER -> 3
+            Subgoal.ADVANCE -> 3
             Subgoal.ADD_ATTACKER -> 2
             Subgoal.PIN -> 2
             Subgoal.ATTACK_DEFENDER -> 1
         }
 
-        val all: List<PlanTemplate> = listOf(AttackKingSquareTemplate, WinWeakUnitTemplate)
+        val all: List<PlanTemplate> = listOf(AttackKingSquareTemplate, PassedPawnTemplate, WinWeakUnitTemplate)
 
         fun of(family: PlanFamily): PlanTemplate = all.first { it.family == family }
 

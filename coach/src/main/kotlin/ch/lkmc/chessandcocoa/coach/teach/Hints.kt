@@ -54,6 +54,7 @@ object Hints {
             val text = when (plan.family) {
                 PlanFamily.ATTACK_KING_SQUARE -> "Keep an eye on $target, next to your king: my pieces are aiming at it."
                 PlanFamily.WIN_WEAK_UNIT -> "Keep an eye on your ${Renderer.name(position.pieceAt(target)?.type)} on $target: I am putting pressure on it."
+                PlanFamily.PROMOTE_PASSED_PAWN -> "Watch my passed pawn on $target: none of your pawns can stop it, and it wants to promote."
             }
             return Hint(HintLevel.THREAT, text, marks)
         }

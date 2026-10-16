@@ -1,20 +1,81 @@
 # AGENTS.md
 
-Chess & Cocoa is a cozy Android chess app that teaches through play —
-**planning stage**: the repo holds the concept docs, not code yet.
-`chess_and_cocoa_concept.md` is the design brief;
-`chess_and_cocoa_concept_review.md` is the independent review it was
-revised against.
+Chess & Cocoa is a cozy Android chess app that teaches through play. The
+computer opponent pursues explicit plans, records them before the player
+replies, and explains how the player's move affected them; Stockfish judges
+move quality independently. `chess_and_cocoa_concept.md` is the design
+brief, `docs/DESIGN.md` maps it onto the code, `docs/experiments/` holds
+measured results.
 
-- Documentation checks (CI runs them on every PR):
-  `python3 tools/doccheck/checkdocs.py .` for links, anchors, fences and
-  tables, and `node tools/doccheck/mmdcheck.mjs .` for Mermaid diagrams
-  (needs `npm --prefix tools/doccheck install --no-save mermaid@11 jsdom@25`
-  once).
-- When code lands: the Android application ID and package prefix is
-  `ch.lkmc.chessandcocoa` (fleet reverse-DNS convention).
-- `media-sources/icon.png` is the icon master; derived icons are committed
-  and their generator documented.
+## Build, test, lint
+
+```sh
+scripts/build-stockfish-host.sh              # host Stockfish for tests and the harness (once)
+./gradlew test testDebugUnitTest lintDebug   # what CI runs, plus assembleDebug/assembleRelease
+scripts/build.sh [--debug]                   # APK staged into dist/
+./gradlew :harness:installDist && harness/build/install/harness/bin/harness --games 12 --difficulty STEADY
+python3 tools/doccheck/checkdocs.py .        # docs: links, anchors, fences, tables
+python3 tools/pieces/svg2vector.py --check   # piece drawables match media-sources/pieces
+python3 tools/icons/gen_icons.py             # after changing media-sources/icon.png
+```
+
+- JDK 17+ (bytecode target 17). Android SDK via `local.properties` or
+  `ANDROID_HOME`, with the NDK and CMake versions pinned in
+  `gradle/libs.versions.toml`.
+- Engine-backed tests read `-Dstockfish.path` (set by Gradle to
+  `build/stockfish-host/stockfish`) and skip themselves when it is absent.
+- Screenshot tests write `docs/screenshots/*.png`; run
+  `./gradlew :app:testDebugUnitTest -Proborazzi.test.record=true` after UI
+  changes and review the images.
+
+## Layers (do not punch through)
+
+`:app` UI -> `:app` session -> `:coach` -> `:engine` / `:chess`. The UI reads
+`SessionState` and calls `GameSession`; it never runs chess rules or engine
+searches. `:coach` is pure Kotlin (no `android.*`). Only `:chess` decides
+legality. Only `:engine` speaks UCI. `:harness` sits on `:coach` and is never
+shipped.
+
+## Toolchain quirks
+
+- `compileSdkVersion("android-37.0")` is paired with
+  `android.suppressUnsupportedCompileSdk=37`; move them together.
+- AGP 9 has built-in Kotlin for `:app`; the JVM modules apply
+  `kotlin-jvm`. Robolectric tests use `@Config(sdk = [35])`: SDK 36 fails on
+  JDK 21 inside Robolectric's file-descriptor shim.
+- Stockfish is vendored unmodified (`third_party/stockfish/PROVENANCE.md`).
+  Do not edit it; the network (`*.nnue`) is fetched and verified by
+  `scripts/fetch-nnue.sh`, never committed.
+- **One engine per process.** The JNI bridge redirects the process-wide
+  `std::cin`/`std::cout`; `EngineHost` owns the single engine for the app's
+  lifetime. A second `NativeStockfishTransport` throws.
+- Release builds ship `arm64-v8a` only; debug adds `x86_64` for the
+  emulator. Native libraries are 16 KB page aligned (checked with
+  `llvm-readelf -lW`).
+
+## Conventions and footguns
+
+- Every source file starts with `SPDX-License-Identifier: GPL-3.0-or-later`.
+  Dependencies must be GPLv3-compatible.
+- **Decision records are frozen.** Never edit a `DecisionRecord` or an
+  existing `PlanRevision`; new information is a new revision. Explanations
+  may only call a plan the reason for a move when `DecisionRecord.planIsReason`.
+- **Analysis is deterministic.** One thread, node limits, hash cleared per
+  search. Anything recorded or compared must keep that profile; the plan
+  policy must stay a pure function of position, plan, window and budget
+  (policy identity, checked by `DecisionTest` and the harness).
+- **The analyst never weakens.** Difficulty lives only in `Difficulty`
+  (selection budget, plan window, concessions); `AnalystBudgets` checks the
+  player at full strength.
+- **No claim without evidence.** New claim types need a continuation or a
+  rule check in `ClaimVerifier`, and wording in `Renderer` that does not
+  exceed the claim's certainty.
+- UI text is a string resource; the coach's explanation templates live in
+  `Renderer` (English only for now). Colour never carries meaning alone:
+  board marks pair colour with a shape.
+- The session discards results for stale revisions and cancelled jobs, and
+  writes saves in order on one IO thread; keep both properties when adding
+  intents.
 
 <!-- shared-rules:start -->
 

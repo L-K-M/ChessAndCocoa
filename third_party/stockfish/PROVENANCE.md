@@ -6,7 +6,7 @@
 - **Tarball SHA-256**: `519b653d0d1ffb96531d982ccbe5c6a19425e8388e0e3c2f70f34b424ab32d76`
 - **Vendored on**: 2026-10-16
 
-All files under `src/`, plus `Copying.txt`, `AUTHORS`, `README.md` and
+All files under `src/`, plus `Copying.txt`, `AUTHORS`, `README.md`, `CONTRIBUTING.md`, `.clang-format` and
 `scripts/net.sh`, are **unmodified** copies of the tagged upstream release.
 Stockfish is licensed GPL-3.0-or-later (see `Copying.txt`); Chess & Cocoa is
 licensed the same way, so the in-process linkage is licence-compatible.

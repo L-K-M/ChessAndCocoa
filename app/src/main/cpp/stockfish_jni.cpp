@@ -12,7 +12,7 @@
 //   Kotlin ◀─nativeReadLine─ outPipe ◀─std::cout─ engine + search threads
 //
 // readLine() blocks and returns null once the engine thread has exited and
-// every buffered byte was drained — the engine closing its stdout end is
+// every buffered byte was drained; the engine closing its stdout end is
 // what makes that happen after "quit".
 //
 // Constraint: ONE engine per process. Stockfish's loop owns the global
@@ -22,7 +22,7 @@
 // threads may still be finishing output while the UCI thread tears down.
 //
 // Threading: one writer thread (nativeSend) and one reader thread
-// (nativeReadLine) plus the engine thread itself — matching UciEngine's
+// (nativeReadLine) plus the engine thread itself, matching UciEngine's
 // single-reader discipline.
 //
 // COCOAFISH_NO_JNI hides the jni.h include and the JNI entry points so the
@@ -298,7 +298,7 @@ Java_ch_lkmc_chessandcocoa_nativeengine_NativeStockfish_nativeJoin(JNIEnv*, jobj
 
     {
         // After engine exit its write end is closed, so a reader's read()
-        // can only be draining to EOF — it never blocks here for long.
+        // can only be draining to EOF; it never blocks here for long.
         std::lock_guard<std::mutex> lock(g.readMu);
         const int                   outFd = g.outRead.exchange(-1);
         if (outFd >= 0)

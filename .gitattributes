@@ -1,7 +1,7 @@
 # Normalize line endings across platforms; the repo is LF.
 * text=auto eol=lf
 
-# Markdown sources: treat as text (LF) — never let a Windows checkout CRLF the
+# Markdown sources: treat as text (LF); never let a Windows checkout CRLF the
 # plan and analysis docs.
 *.md   text eol=lf
 
@@ -17,7 +17,7 @@
 *.kts  text eol=lf
 *.editorconfig text eol=lf
 
-# Binary assets — never diff/merge as text.
+# Binary assets: never diff/merge as text.
 *.png  binary
 *.jpg  binary
 *.webp binary

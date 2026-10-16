@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Phones only (owner decision, concept Section 2.4): release builds ship
+         arm64-v8a alone to keep the ~100 MB engine library single. -->
+    <issue id="ChromeOsAbiSupport" severity="ignore" />
+</lint>

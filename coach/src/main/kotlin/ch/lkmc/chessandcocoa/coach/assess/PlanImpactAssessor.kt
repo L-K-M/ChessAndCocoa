@@ -20,7 +20,7 @@ import ch.lkmc.chessandcocoa.coach.plan.PolicyChoice
 /**
  * Axis B of the human-move assessment (concept Sections 10.2, 10.4). The
  * played move is compared with a reference move from the same parent
- * position — the best move that does not address the plan — so the natural
+ * position (the best move that does not address the plan), so the natural
  * passage of a turn is never mistaken for the move's effect.
  *
  * ```

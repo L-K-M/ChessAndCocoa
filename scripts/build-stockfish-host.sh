@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-stockfish-host.sh — build a Stockfish binary for the host machine.
+# build-stockfish-host.sh: build a Stockfish binary for the host machine.
 #
 # Usage: scripts/build-stockfish-host.sh [-h|--help]
 #

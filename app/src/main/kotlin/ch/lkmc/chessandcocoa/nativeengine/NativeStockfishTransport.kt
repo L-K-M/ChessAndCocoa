@@ -9,7 +9,7 @@ import ch.lkmc.chessandcocoa.engine.UciTransport
  *
  * The native engine supports a single engine per process (it owns the
  * process-wide std::cin/std::cout), so constructing a second transport while
- * one runs — or after one ran — throws [IllegalStateException].
+ * one runs, or after one ran, throws [IllegalStateException].
  */
 class NativeStockfishTransport : UciTransport {
 

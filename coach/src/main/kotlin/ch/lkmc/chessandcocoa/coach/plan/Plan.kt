@@ -16,6 +16,9 @@ enum class PlanFamily {
 
     /** Build a mating or material threat against a square next to the king that only the king defends. */
     ATTACK_KING_SQUARE,
+
+    /** Escort a passed pawn to promotion. Success: a promoted piece that keeps its material. */
+    PROMOTE_PASSED_PAWN,
 }
 
 /** Lifecycle statuses (Section 7.4). */
@@ -41,6 +44,9 @@ enum class Subgoal {
     ATTACK_DEFENDER,
     /** Create a direct mating threat through the target square. */
     CREATE_THREAT,
+
+    /** Push the plan's own pawn one step closer to promotion. */
+    ADVANCE,
 }
 
 /** A legal move the template proposes, labelled with the step it takes. */
@@ -56,6 +62,7 @@ enum class DependencyKind {
     SQUARE_WEAK,
     ATTACKER_PRESENT,
     ROUTE_AVAILABLE,
+    PAWN_PASSED,
 }
 
 @Serializable

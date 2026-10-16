@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.data
 
 import android.content.Context
+import androidx.core.content.edit
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
 import kotlinx.serialization.json.Json
 
@@ -21,7 +22,7 @@ class PreferencesStore(context: Context) {
     }
 
     fun save(preferences: ExperiencePreferences) {
-        prefs.edit().putString(KEY, JSON.encodeToString(ExperiencePreferences.serializer(), preferences)).apply()
+        prefs.edit { putString(KEY, JSON.encodeToString(ExperiencePreferences.serializer(), preferences)) }
     }
 
     private companion object {

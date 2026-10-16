@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fetch-nnue.sh — fetch and verify the Stockfish NNUE evaluation network.
+# fetch-nnue.sh: fetch and verify the Stockfish NNUE evaluation network.
 #
 # Usage: scripts/fetch-nnue.sh [-h|--help]
 #

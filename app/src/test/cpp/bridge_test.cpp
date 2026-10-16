@@ -2,8 +2,8 @@
 //
 // Host-side smoke test for the streambuf bridge in
 // app/src/main/cpp/stockfish_jni.cpp. It compiles the bridge with
-// COCOAFISH_NO_JNI (dropping the jni.h dependency), runs engineMain — the
-// same function the JNI layer starts — on a thread, and drives the real
+// COCOAFISH_NO_JNI (dropping the jni.h dependency), runs engineMain (the
+// same function the JNI layer starts) on a thread, and drives the real
 // UCIEngine over the same POSIX pipes: uci/uciok, isready/readyok, a bounded
 // search to bestmove, then quit to EOF. This proves everything in the bridge
 // except the JNI string plumbing itself.
