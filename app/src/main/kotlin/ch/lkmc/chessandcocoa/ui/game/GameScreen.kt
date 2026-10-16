@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -142,9 +144,11 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
                 )
             }
             if (wide) {
-                Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    boardView(Modifier.fillMaxSize().weight(1f, fill = false))
-                    panel(Modifier.weight(1f).fillMaxSize())
+                // The board takes the full height it can, never more than most of the width.
+                val boardSide = minOf(maxHeight - WIDE_PADDING * 2, maxWidth * WIDE_BOARD_SHARE)
+                Row(Modifier.fillMaxSize().padding(WIDE_PADDING), horizontalArrangement = Arrangement.spacedBy(WIDE_PADDING)) {
+                    boardView(Modifier.size(boardSide))
+                    panel(Modifier.weight(1f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
@@ -265,3 +269,6 @@ private fun MoveList(notation: String) {
         Text(notation, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+private val WIDE_PADDING = 12.dp
+private const val WIDE_BOARD_SHARE = 0.6f

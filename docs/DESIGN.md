@@ -74,8 +74,9 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). Full reports: [`docs/experiments/`](experiments/2026-10-16-results.md). In short:
 
-- Policy identity held in every re-run probe branch (E2).
-- Plan influence and plan events per game stay below the review's thresholds for some profiles; see the report for the numbers and the decision-rule status.
+- Policy identity held in all 321 re-run probe branches (E2).
+- Plans introduce or decide 10 to 19% of eligible moves, below the review's 30% threshold (E1); when they act, the chosen moves are mostly specific to the plan.
+- Median plan events shown per game: 1.0 (Gentle), 2.0 (Steady), 1.5 (Keen); the E3 threshold is 2.
 - Phone latency is unmeasured: the numbers are desktop numbers.
 
 ## 6. Requirement traceability

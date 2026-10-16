@@ -3,6 +3,8 @@ package ch.lkmc.chessandcocoa.ui
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -28,6 +30,7 @@ import ch.lkmc.chessandcocoa.ui.review.ReviewScreen
 import ch.lkmc.chessandcocoa.ui.settings.SettingsScreen
 import ch.lkmc.chessandcocoa.ui.theme.CocoaTheme
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -94,6 +97,11 @@ class ScreensTest {
         val record = session.state.value.record!!
         assertTrue(record.events.any { it.brief.startsWith("That allows checkmate: Qxf7#") })
         compose.onRoot().captureRoboImage(shot("game-over"))
+
+        // "Show me why" replays the mate on its own board, leaving the game untouched.
+        compose.onAllNodesWithText("Show me why").onFirst().performClick()
+        compose.waitForIdle()
+        captureScreenRoboImage(shot("evidence"))
     }
 
     @Test
@@ -108,8 +116,8 @@ class ScreensTest {
             }
         }
 
-        // 1.e4, then a loose bishop move to draw a comment.
-        for ((from, to) in listOf("e2" to "e4", "f1" to "c4", "d1" to "f3")) {
+        // A short scripted line ending in a queen grab that draws a comment.
+        for ((from, to) in listOf("e2" to "e4", "f1" to "c4", "d1" to "f3", "f3" to "f6")) {
             compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
             val board = session.state.value.board!!
             val fromSquare = ch.lkmc.chessandcocoa.chess.Square.parse(from)
@@ -125,6 +133,18 @@ class ScreensTest {
         review.value = session.review()
         compose.waitForIdle()
         compose.onRoot().captureRoboImage(shot("review"))
+    }
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-land-xxhdpi")
+    fun landscapeKeepsTheBoardAndPanelSideBySide() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = SCHOLAR_FEN)
+        compose.setContent { CocoaTheme { GameScreen(session, navigation()) } }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.onNodeWithContentDescription("g8, black knight").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage(shot("landscape"))
     }
 
     private fun describe(board: ch.lkmc.chessandcocoa.session.BoardSnapshot, square: ch.lkmc.chessandcocoa.chess.Square): String {
@@ -143,6 +163,8 @@ class ScreensTest {
             store = GameStore(Files.createTempDirectory("games").toFile()),
             preferencesStore = PreferencesStore(context),
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            // A fixed seed makes the opponent's choices, and so the screenshots, repeatable.
+            seeds = { SEED },
         )
     }
 
@@ -152,6 +174,7 @@ class ScreensTest {
 
     private companion object {
         const val TIMEOUT = 60_000L
+        const val SEED = 3L
         const val SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
     }
 }
