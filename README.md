@@ -7,7 +7,7 @@
 
 *A cozy chess teaching app for Android.* Play a game. Understand the moves.
 
-The computer opponent pursues explicit, testable plans: attacking a square only your king defends, winning a weak piece, or escorting a passed pawn. It records each intention before you reply, and after your move tells you how your move affected it: whether you stopped the plan, only delayed it, or let it through. An independent Stockfish analysis judges the quality of every move separately, so stopping a plan never makes a bad move look good.
+The computer opponent pursues explicit, testable plans: attacking a square only your king defends, winning a weak piece, escorting a passed pawn, or using an open file to reach a pawn. It records each intention before you reply, and after your move tells you how your move affected it: whether you stopped the plan, only delayed it, or let it through. An independent Stockfish analysis judges the quality of every move separately, so stopping a plan never makes a bad move look good.
 
 | Home | Feedback on a move | Game over |
 |---|---|---|
@@ -45,7 +45,7 @@ scripts/build-stockfish-host.sh
 - [`chess_and_cocoa_concept.md`](chess_and_cocoa_concept.md): the product concept and design brief.
 - [`chess_and_cocoa_concept_review.md`](chess_and_cocoa_concept_review.md): the independent review it was revised against.
 - [`docs/DESIGN.md`](docs/DESIGN.md): how the code implements the brief, with requirement traceability.
-- [`docs/experiments/`](docs/experiments/2026-10-16-results.md): results of the decision experiments.
+- [`docs/experiments/`](docs/experiments/2026-10-16-open-file-results.md): results of the decision experiments.
 
 ## License
 

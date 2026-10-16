@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a rook plan that uses an open file to reach a pawn, with recorded
+  intentions, move-impact feedback and hints. Occupying a file alone does
+  not count as success; the plan must win material.
+
 ## 0.1.0
 
 - First playable app: untimed games against Gentle, Steady and Keen

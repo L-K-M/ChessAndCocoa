@@ -30,6 +30,7 @@ class DecisionTest {
         gameOf("e4", "e5", "Nf3", "Nc6"),
         gameOf("e4", "e5", "Nf3", "d6", "d4", "Bg4"),
         gameOf("d4", "d5", "c4", "e6", "Nc3", "Nf6", "Bg5", "Nbd7"),
+        Game.new(OpenFileTemplateTest.ROUTE_FEN),
     )
 
     @Test

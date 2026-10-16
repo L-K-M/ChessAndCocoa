@@ -52,8 +52,11 @@ The probe ([`PlanProbe`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/pl
 | Attack a weak king square | A square in front of the enemy king that only the king defends (f7 before castling) | Add attackers, create a mate threat, strike | Checkmate, or material won by the strike |
 | Win a weak unit | An enemy piece or pawn attacked at least as often as it is defended, or pinned | Add attackers, remove or attack defenders, pin, strike | The unit is gone and material was won |
 | Promote a passed pawn | An own passed pawn on its fourth rank or beyond | Advance, control the stop square, remove a blocker, promote | A promoted piece that keeps its material |
+| Invade through an open file | An enemy pawn in its own half of the board | Put a rook on an open file, enter the pawn's rank, capture | The target pawn is gone and material was won |
 
-The third family was added after experiment E3 found the first two too rare (Section 4). A plan applies only where it has at least one statically safe next step.
+The third and fourth families address experiment E3's coverage gap. A plan applies only where it has at least one statically safe next step.
+
+[`OpenFileTemplate`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/plan/OpenFileTemplate.kt) requires a specific pawn to win. It proposes quiet rook routes with a safe entry and a positive static exchange on the pawn, then uses the existing policy and one-reply probe. The owner-only route geometry is a candidate diagnostic, never a supporting variation. A blocked file, a poisoned entry or a defended pawn can remove the route. Merely reaching the file or the seventh rank never completes the goal.
 
 ## 3. Assessing the player's move
 
@@ -72,11 +75,12 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 ## 5. Measured results
 
-The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). Full reports: [`docs/experiments/`](experiments/2026-10-16-results.md). In short:
+The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). Latest comparison: [`docs/experiments/`](experiments/2026-10-16-open-file-results.md). In short:
 
-- Policy identity held in all 286 re-run probe branches (E2).
-- Plans introduce or decide 12 to 19% of eligible moves, below the review's 30% threshold (E1); when they act, the chosen moves are mostly specific to the plan.
-- Median plan events shown per game: 1.0 (Gentle), 2.0 (Steady), 1.0 (Keen); the E3 threshold is 2.
+- Policy identity held in all 304 re-run probe branches (E2).
+- Plans introduce or decide 13 to 19% of eligible moves, below the review's 30% threshold (E1). Specificity meets its target for Gentle only.
+- Median plan events shown per game: 1.5 (Gentle), 2.0 (Steady), 1.0 (Keen); the E3 threshold is 2.
+- The open-file family was chosen on three Gentle decisions, none for Steady and one for Keen. Its contribution remains small.
 - Phone latency is unmeasured: the numbers are desktop numbers.
 
 ## 6. Requirement traceability

@@ -19,6 +19,9 @@ enum class PlanFamily {
 
     /** Escort a passed pawn to promotion. Success: a promoted piece that keeps its material. */
     PROMOTE_PASSED_PAWN,
+
+    /** Bring a rook through an open file to win an enemy pawn. Success: material won. */
+    INVADE_OPEN_FILE,
 }
 
 /** Lifecycle statuses (Section 7.4). */
@@ -47,6 +50,9 @@ enum class Subgoal {
 
     /** Push the plan's own pawn one step closer to promotion. */
     ADVANCE,
+
+    /** Place a rook on an open file with a route to the target pawn. */
+    OCCUPY_FILE,
 }
 
 /** A legal move the template proposes, labelled with the step it takes. */
