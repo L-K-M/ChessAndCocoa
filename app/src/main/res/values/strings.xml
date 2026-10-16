@@ -40,6 +40,7 @@
     <string name="status_draw">Draw.</string>
     <string name="feedback_show_why">Show me why</string>
     <string name="feedback_hide">Hide</string>
+    <string name="feedback_show">Show</string>
     <string name="action_hint">Hint</string>
     <string name="action_more_hint">Another hint</string>
     <string name="action_take_back">Take back</string>

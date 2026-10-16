@@ -37,7 +37,7 @@ object Renderer {
         is Claim.OpponentOversight -> "I did not see that coming."
         is Claim.PlanTransitionClaim -> transition(claim)
         is Claim.Concession ->
-            "On move ${moveNumber(claim.ply)} I played ${claim.san} on purpose instead of the stronger ${claim.bestSan}, to keep the game gentle."
+            "On move ${claim.fullmoveNumber} I played ${claim.san} on purpose instead of the stronger ${claim.bestSan}, to keep the game gentle."
     }
 
     private fun gameOver(claim: Claim.GameOver): String = when (claim.reason) {
@@ -58,9 +58,15 @@ object Renderer {
         return "$base My ${name(claim.matingPiece.type)} would be protected by the ${name(support.second)} on ${support.first}."
     }
 
-    private fun exposes(claim: Claim.ExposesPiece): String =
-        if (claim.undefended) "That move leaves your ${name(claim.piece)} on ${claim.square} undefended. I can capture it next: ${claim.captureSan}."
-        else "That move leaves your ${name(claim.piece)} on ${claim.square} without enough defenders. I can win it with ${claim.captureSan}."
+    private fun exposes(claim: Claim.ExposesPiece): String {
+        val piece = "${name(claim.piece)} on ${claim.square}"
+        val capture = if (claim.undefended) "I can capture it next: ${claim.captureSan}." else "I can win it with ${claim.captureSan}."
+        return when {
+            claim.alreadyExposed -> "Your $piece was already in danger, and this move does not save it. $capture"
+            claim.undefended -> "That move leaves your $piece undefended. $capture"
+            else -> "That move leaves your $piece without enough defenders. $capture"
+        }
+    }
 
     private fun quality(claim: Claim.MoveQuality, numbers: NumberDetail): String {
         val detail = if (numbers == NumberDetail.SHOWN && claim.lossCp != null && claim.lossCp > 0) {
@@ -133,8 +139,6 @@ object Renderer {
         PieceType.KING -> "king"
         null -> "piece"
     }
-
-    fun moveNumber(ply: Int): Int = ply / 2 + 1
 
     /** "12. Nf3" for White's move, "12... Nf6" for Black's, using the game's own move numbers. */
     fun moveLabel(fullmoveNumber: Int, whiteMoved: Boolean, san: String): String =

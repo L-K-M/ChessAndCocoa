@@ -85,7 +85,7 @@ fun FeedbackCard(event: TeachingEvent, hidden: Boolean, onToggle: () -> Unit, on
                         OutlinedButton(onClick = onShowWhy) { Text(stringResource(R.string.feedback_show_why)) }
                     }
                     TextButton(onClick = onToggle) {
-                        Text(stringResource(if (hidden) R.string.feedback_show_why else R.string.feedback_hide))
+                        Text(stringResource(if (hidden) R.string.feedback_show else R.string.feedback_hide))
                     }
                 }
             }

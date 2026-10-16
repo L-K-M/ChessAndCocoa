@@ -15,7 +15,13 @@ enum class ReplySource { ENGINE_RANKED, TEMPLATE_CHALLENGE }
 
 /** What the plan policy could do after a tested reply. */
 @Serializable
-enum class BranchOutcome { CONTINUES, GOAL_REACHED, BLOCKED, GAME_OVER }
+enum class BranchOutcome(val refutes: Boolean) {
+    CONTINUES(refutes = false),
+    GOAL_REACHED(refutes = false),
+    BLOCKED(refutes = true),
+    /** The reply ends the game (mate against the plan's owner, or a draw): the plan cannot go on. */
+    GAME_OVER(refutes = true),
+}
 
 /** One tested reply and the plan policy's answer to it. Values are stored, not references (Section 11.1). */
 @Serializable
@@ -27,7 +33,7 @@ data class ProbeBranch(
     val rank: Int?,
     /** The reply's score from the opponent's point of view. */
     val replyScore: Score,
-    /** Within the opponent's quality window of its best reply: a "strong" reply. */
+    /** Within [AnalystBudgets.strongReplyCp] of the best reply: a "strong" reply. */
     val strong: Boolean,
     val outcome: BranchOutcome,
     val followUp: PlanAction? = null,
@@ -50,14 +56,14 @@ data class PlanAssessment(
     val referenceScore: Score,
     val referenceMove: String?,
     val branches: List<ProbeBranch>,
-    /** True when no strong tested reply leaves the plan without an acceptable continuation. */
+    /** True when no strong tested reply blocks the plan or ends the game. */
     val holds: Boolean,
     /** Horizon in opponent replies; the on-device probe tests one (Section 8.2). */
     val horizon: Int = 1,
     val selectionMethod: String,
 ) {
-    /** Strong replies after which the plan policy found no acceptable action. */
-    val refutations: List<ProbeBranch> get() = branches.filter { it.strong && it.outcome == BranchOutcome.BLOCKED }
+    /** Strong replies after which the plan cannot continue. */
+    val refutations: List<ProbeBranch> get() = branches.filter { it.strong && it.outcome.refutes }
 
     /** Persistence cost in centipawns (best unrestricted minus plan move), null across mate scores. */
     val persistenceCostCp: Int? get() = ScoreMath.lossCp(referenceScore, planMoveScore)
@@ -124,11 +130,11 @@ class PlanProbe(
         }
 
         val branches = tested.map { reply ->
-            val strong = ScoreMath.withinWindow(reply.score, bestReply, windowCp)
+            val strong = ScoreMath.withinWindow(reply.score, bestReply, budgets.strongReplyCp)
             branch(afterPlan, plan, reply, strong, windowCp)
         }
 
-        val holds = branches.none { it.strong && it.outcome == BranchOutcome.BLOCKED }
+        val holds = branches.none { it.strong && it.outcome.refutes }
         return assessment(branches, holds)
     }
 

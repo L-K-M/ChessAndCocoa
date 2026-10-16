@@ -69,6 +69,8 @@ sealed interface TacticalFinding {
         val capture: Move,
         val captureSan: String,
         val undefended: Boolean,
+        /** The same capture was already possible before the move, which only failed to prevent it. */
+        val alreadyExposed: Boolean = false,
     ) : TacticalFinding
 
     /** A clearly better capture or mate was available. */

@@ -3,6 +3,7 @@ package ch.lkmc.chessandcocoa.coach.assess
 
 import ch.lkmc.chessandcocoa.chess.Game
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Piece
 import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
@@ -154,7 +155,7 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
             findings += TacticalFinding.AllowsForcedMate(-played.moves, line, sanLine(position, line))
         }
 
-        exposedPiece(after, playedLine, quality)?.let { findings += it }
+        exposedPiece(parent, after, playedLine, quality)?.let { findings += it }
         missedWin(parent, root, quality)?.let { findings += it }
 
         if (position.isCapture(move) && position.see(move) > 0 && quality.category <= QualityCategory.GOOD) {
@@ -173,8 +174,8 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
         return findings
     }
 
-    /** The engine's expected reply captures a piece the move left exposed. */
-    private fun exposedPiece(after: Game, playedLine: PlayedLine, quality: QualityAssessment): TacticalFinding.LeavesPieceExposed? {
+    /** The engine's expected reply captures a piece the move left exposed, or failed to save. */
+    private fun exposedPiece(parent: Game, after: Game, playedLine: PlayedLine, quality: QualityAssessment): TacticalFinding.LeavesPieceExposed? {
         val loss = quality.lossCp ?: return null
         if (loss < EXPOSED_LOSS_CP) return null
         val reply = playedLine.pv.getOrNull(1) ?: return null
@@ -186,7 +187,13 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
 
         val square = next.capturedSquare(reply)!!
         val undefended = Facts.defenders(next, square).isEmpty()
-        return TacticalFinding.LeavesPieceExposed(square, captured, reply, next.san(reply), undefended)
+        return TacticalFinding.LeavesPieceExposed(square, captured, reply, next.san(reply), undefended, alreadyExposed(parent.current, reply, captured))
+    }
+
+    /** The same winning capture was there before the move: the move did not cause it, it only failed to prevent it. */
+    private fun alreadyExposed(position: Position, capture: Move, piece: Piece): Boolean {
+        val passed = position.passTurn() ?: return false
+        return passed.isLegal(capture) && passed.capturedPiece(capture) == piece && passed.see(capture) > 0
     }
 
     private fun missedWin(parent: Game, root: GameSearch, quality: QualityAssessment): TacticalFinding.MissedWin? {
@@ -256,6 +263,9 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
                 bestMate && playedMate ->
                     if ((played as Score.Mate).moves > (best as Score.Mate).moves + MATE_SLACK_MOVES) QualityCategory.GOOD else QualityCategory.BEST
                 bestMate -> if (ScoreMath.clampedCp(played) >= DECIDED_CP) QualityCategory.MISTAKE else QualityCategory.BLUNDER
+                // Lost either way: lasting nearly as long as the best defense counts as best.
+                bestLosing && playedLosing ->
+                    if (-(played as Score.Mate).moves < -(best as Score.Mate).moves - MATE_SLACK_MOVES) QualityCategory.GOOD else QualityCategory.BEST
                 bestLosing -> QualityCategory.BEST
                 playedLosing -> QualityCategory.BLUNDER
                 else -> byLoss((best as Score.Centipawns).cp, (played as Score.Centipawns).cp)

@@ -7,6 +7,7 @@ import ch.lkmc.chessandcocoa.coach.analysis.Searcher
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
+import ch.lkmc.chessandcocoa.coach.teach.HintLevel
 import ch.lkmc.chessandcocoa.data.GameStore
 import ch.lkmc.chessandcocoa.data.PreferencesStore
 import kotlinx.coroutines.CompletableDeferred
@@ -126,9 +127,56 @@ class GameSessionTest {
         assertTrue(state.record!!.assessments.single().assisted)
     }
 
-    private fun session(): GameSession {
+    @Test
+    fun aFailedOpponentMoveIsTriedAgainAfterTheError() = runBlocking {
+        val session = session()
+        analyst.failures = 1
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE } }
+
+        session.dismissError()
+        val state = awaitPhase(session, Phase.HUMAN_TURN)
+        assertEquals(1, state.record!!.ply)
+    }
+
+    @Test
+    fun aTakebackKeepsTheHintShownForThatDecision() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        session.hint()
+        withTimeout(TIMEOUT) { session.state.first { it.hint != null } }
+        session.play(Move.parseUci("d2d4"))
+        awaitPly(session, 2)
+        session.takeBack()
+
+        // Back at the hinted decision: the help was already seen, so a new move there is still assisted.
+        val record = awaitPly(session, 0).record!!
+        assertTrue(record.assistedAt(0))
+        assertEquals(HintLevel.THREAT, record.hintLevelAt(0))
+    }
+
+    @Test
+    fun theReviewUsesTheGamesOwnMoveNumbers() = runBlocking {
+        // A practice position at move 30; Gentle concedes often against the all-equal fake analyst.
+        val session = session(seed = CONCESSION_SEED)
+        session.newGame(SideChoice.WHITE, Difficulty.GENTLE, startFen = MOVE_30_FEN)
+        repeat(PRACTICE_MOVES) { index ->
+            val board = awaitPly(session, index * 2).board!!
+            session.play(board.legalMoves.values.flatten().first())
+        }
+        awaitPly(session, PRACTICE_MOVES * 2)
+
+        val review = session.review()!!
+        assertTrue(review.concessions.isNotEmpty(), "no concession to check")
+        val numbers = review.concessions.map { Regex("On move (\\d+)").find(it)!!.groupValues[1].toInt() }
+        assertTrue(numbers.all { it >= 30 }, "move numbers were $numbers")
+    }
+
+    private fun session(seed: Long = 1L): GameSession {
         val context = RuntimeEnvironment.getApplication()
-        return GameSession(Coach(Searcher(analyst)), GameStore(directory), PreferencesStore(context), scope)
+        return GameSession(Coach(Searcher(analyst)), GameStore(directory), PreferencesStore(context), scope, seeds = { seed })
     }
 
     private suspend fun awaitPhase(session: GameSession, phase: Phase): SessionState =
@@ -140,5 +188,8 @@ class GameSessionTest {
     private companion object {
         const val TIMEOUT = 20_000L
         const val SETTLE_MILLIS = 300L
+        const val CONCESSION_SEED = 7L
+        const val PRACTICE_MOVES = 8
+        const val MOVE_30_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 30"
     }
 }

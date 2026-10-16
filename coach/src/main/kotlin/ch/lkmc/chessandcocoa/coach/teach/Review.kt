@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.coach.teach
 
 import ch.lkmc.chessandcocoa.chess.GameOutcome
+import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
@@ -23,7 +24,7 @@ data class EpisodeSummary(
 )
 
 @Serializable
-data class ReviewMoment(val ply: Int, val san: String, val text: String, val tone: Tone)
+data class ReviewMoment(val ply: Int, val san: String, val text: String, val tone: Tone, val label: String)
 
 /** The short post-game review (Section 4.1): a few plan episodes and key moments, spoilers allowed. */
 @Serializable
@@ -52,10 +53,12 @@ object Reviews {
             val prior = record.decisions.lastOrNull { it.ply == assessment.ply - 1 }
             val plan = prior?.plan
             val claims = ClaimBuilder.forHumanMove(parent, assessment, prior, plan, emptyList())
-            val event = TeachingPolicy.select(claims, reviewPreferences, "review-${assessment.ply}", assessment.ply + 1, record.revision, assessment.san)
+            val position = parent.current
+            val label = Renderer.moveLabel(position.fullmoveNumber, position.sideToMove == Side.WHITE, assessment.san)
+            val event = TeachingPolicy.select(claims, reviewPreferences, "review-${assessment.ply}", assessment.ply + 1, record.revision, label)
                 ?: return@mapNotNull null
             if (TeachingPolicy.priority(event.claims.first()) < MOMENT_PRIORITY) return@mapNotNull null
-            assessment.ply to ReviewMoment(assessment.ply, assessment.san, event.brief, event.tone)
+            assessment.ply to ReviewMoment(assessment.ply, assessment.san, event.brief, event.tone, label)
         }
             .sortedByDescending { (_, moment) -> if (moment.tone == Tone.SERIOUS) 1 else 0 }
             .take(MAX_MOMENTS)
@@ -67,7 +70,7 @@ object Reviews {
             .takeLast(MAX_EPISODES)
             .map { summarize(record, it) }
 
-        val concessions = ClaimBuilder.concessions(record.decisions).map { Renderer.render(it) }
+        val concessions = ClaimBuilder.concessions(game, record.decisions).map { Renderer.render(it) }
         val humanMoves = record.assessments.size
 
         return GameReview(
@@ -84,8 +87,9 @@ object Reviews {
         val positions = record.game.positions
         val target = episode.current.targetSquare
         val steps = episode.revisions.mapNotNull { revision ->
-            val move = "move ${Renderer.moveNumber(revision.ply)}"
-            val san = revision.action?.let { action -> positions.getOrNull(revision.ply)?.takeIf { it.isLegal(action.move) }?.san(action.move) }
+            val position = positions.getOrNull(revision.ply) ?: return@mapNotNull null
+            val move = "move ${position.fullmoveNumber}"
+            val san = revision.action?.let { action -> position.takeIf { it.isLegal(action.move) }?.san(action.move) }
             when (revision.reason) {
                 TransitionReason.PROPOSED -> null
                 TransitionReason.ADOPTED -> "On $move I started a plan against $target" + (san?.let { " with $it." } ?: ".")

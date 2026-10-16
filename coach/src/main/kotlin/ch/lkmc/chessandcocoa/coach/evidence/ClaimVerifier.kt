@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.coach.evidence
 
 import ch.lkmc.chessandcocoa.chess.Game
+import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
 import ch.lkmc.chessandcocoa.chess.Position
 
@@ -24,12 +25,19 @@ object ClaimVerifier {
             is Claim.ExposesPiece -> {
                 val start = replay?.first() ?: return false
                 val capture = claim.continuation.moves.first()
-                start.isCapture(capture) && start.capturedSquare(capture) == claim.square && start.capturedPiece(capture)?.type == claim.piece
+                val captures = start.isCapture(capture) && start.capturedSquare(capture) == claim.square && start.capturedPiece(capture)?.type == claim.piece
+                captures && (!claim.alreadyExposed || couldCaptureBefore(game, claim.continuation.fromPly, capture))
             }
             is Claim.MissedWin -> !claim.mate || replay?.last()?.isCheckmate() == true
             is Claim.GameOver -> game.outcome()?.reason == claim.reason || claim.reason == OutcomeReason.RESIGNATION
             else -> true
         }
+    }
+
+    /** [capture] was already legal, with the turn passed, before the move that led to [ply]. */
+    private fun couldCaptureBefore(game: Game, ply: Int, capture: Move): Boolean {
+        val before = game.positions.getOrNull(ply - 1)?.passTurn() ?: return false
+        return before.isLegal(capture) && before.isCapture(capture)
     }
 
     /** Positions along [continuation], or null when it does not start in [game]'s history or a move is illegal. */

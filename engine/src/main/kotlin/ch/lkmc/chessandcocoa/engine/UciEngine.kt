@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  *                            └──── reader thread ◀──readLine()──┘
  * ```
  */
-class UciEngine(private val transport: UciTransport) : AutoCloseable {
+class UciEngine(private val transport: UciTransport, private val timeouts: UciTimeouts = UciTimeouts()) : AutoCloseable {
 
     private val lines = LinkedBlockingQueue<String>()
 
@@ -37,7 +37,7 @@ class UciEngine(private val transport: UciTransport) : AutoCloseable {
     fun start() {
         transport.send("uci")
         while (true) {
-            val line = next() ?: throw EngineException("Engine exited during handshake")
+            val line = next("uciok") ?: throw EngineException("Engine exited during handshake")
             if (line.startsWith("id name ")) name = line.removePrefix("id name ").trim()
             if (line == "uciok") break
         }
@@ -61,11 +61,14 @@ class UciEngine(private val transport: UciTransport) : AutoCloseable {
 
         val collector = InfoCollector(request.multiPv)
         var stopped = false
+        var stopDeadline = Long.MAX_VALUE
         while (true) {
             if (!stopped && isCancelled()) {
                 transport.send("stop")
                 stopped = true
+                stopDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeouts.stopMillis)
             }
+            if (System.nanoTime() > stopDeadline) throw EngineException("Engine did not stop its search")
             val line = poll() ?: if (closed) throw EngineException("Engine exited during search") else continue
             if (line.startsWith("info ")) collector.accept(line)
             if (line.startsWith("bestmove")) {
@@ -101,16 +104,19 @@ class UciEngine(private val transport: UciTransport) : AutoCloseable {
     private fun awaitReady() {
         transport.send("isready")
         while (true) {
-            val line = next() ?: throw EngineException("Engine exited before readyok")
+            val line = next("readyok") ?: throw EngineException("Engine exited before readyok")
             if (line == "readyok") return
         }
     }
 
-    private fun next(): String? {
-        while (true) {
+    /** The next line, or null once the engine has exited; throws after [UciTimeouts.responseMillis] of silence. */
+    private fun next(awaiting: String): String? {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeouts.responseMillis)
+        while (System.nanoTime() < deadline) {
             poll()?.let { return it }
             if (closed) return null
         }
+        throw EngineException("Engine went quiet while waiting for $awaiting")
     }
 
     private fun poll(): String? = lines.poll(POLL_MILLIS, TimeUnit.MILLISECONDS)
@@ -146,6 +152,14 @@ class UciEngine(private val transport: UciTransport) : AutoCloseable {
 }
 
 class EngineException(message: String) : RuntimeException(message)
+
+/** How long [UciEngine] waits on an engine that has gone quiet before failing with [EngineException]. */
+data class UciTimeouts(
+    /** Silence allowed while awaiting "uciok" or "readyok"; generous, as the first may include loading the network. */
+    val responseMillis: Long = 30_000,
+    /** Time allowed for "bestmove" after "stop". */
+    val stopMillis: Long = 5_000,
+)
 
 /**
  * Keeps the latest complete "info … pv …" line per MultiPV slot. Lines

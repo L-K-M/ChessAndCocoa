@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ch.lkmc.chessandcocoa.R
-import ch.lkmc.chessandcocoa.coach.render.Renderer
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
 
 /** A short review of meaningful moments, with intentions fully revealed (Section 4.2). */
@@ -47,7 +46,7 @@ fun ReviewScreen(review: GameReview, onBack: () -> Unit) {
                 review.moments.forEach { moment ->
                     Card {
                         Column(Modifier.padding(12.dp)) {
-                            Text("${Renderer.moveNumber(moment.ply)}. ${moment.san}", style = MaterialTheme.typography.titleSmall)
+                            Text(moment.label, style = MaterialTheme.typography.titleSmall)
                             Text(moment.text, style = MaterialTheme.typography.bodyMedium)
                         }
                     }

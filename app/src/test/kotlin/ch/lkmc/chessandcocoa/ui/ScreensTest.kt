@@ -98,6 +98,13 @@ class ScreensTest {
         assertTrue(record.events.any { it.brief.startsWith("That allows checkmate: Qxf7#") })
         compose.onRoot().captureRoboImage(shot("game-over"))
 
+        // Hiding the feedback leaves a "Show" toggle, not a second "Show me why".
+        compose.onAllNodesWithText("Hide").onFirst().performClick()
+        compose.waitForIdle()
+        assertTrue(compose.onAllNodesWithText("Show me why").fetchSemanticsNodes().isEmpty())
+        compose.onAllNodesWithText("Show").onFirst().performClick()
+        compose.waitForIdle()
+
         // "Show me why" replays the mate on its own board, leaving the game untouched.
         compose.onAllNodesWithText("Show me why").onFirst().performClick()
         compose.waitForIdle()

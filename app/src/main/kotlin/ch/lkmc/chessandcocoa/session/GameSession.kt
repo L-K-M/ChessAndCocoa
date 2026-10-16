@@ -77,6 +77,8 @@ class GameSession(
 
     private var work: Job? = null
     private var warmup: Job? = null
+    /** Read by [flushSaves] from any thread. */
+    @Volatile
     private var lastSave: Job? = null
 
     /** One writer, first in first out: saves land in revision order. */
@@ -179,7 +181,14 @@ class GameSession(
         _state.update { it.copy(preferences = preferences) }
     }
 
-    fun dismissError() = _state.update { it.copy(error = null) }
+    /** Clears the error. An opponent move that failed is tried again, so the game never stalls on it. */
+    fun dismissError() {
+        _state.update { it.copy(error = null) }
+        val current = _state.value
+        val record = current.record ?: return
+        if (current.phase != Phase.OPPONENT_THINKING || work?.isActive == true) return
+        continueGame(record)
+    }
 
     /** Starts whatever the position calls for: the opponent's move, or analysis while the player thinks. */
     private fun continueGame(record: GameRecord) {

@@ -110,6 +110,8 @@ sealed interface Claim {
         val captureSan: String,
         override val marks: List<MarkedSquare>,
         override val continuation: Continuation,
+        /** Rule-checked: the capture was already possible before the move. */
+        val alreadyExposed: Boolean = false,
     ) : Claim {
         override val certainty get() = Certainty.ANALYSIS_SUPPORTED
         override val disclosure get() = Disclosure.NOW
@@ -244,6 +246,8 @@ sealed interface Claim {
     @SerialName("concession")
     data class Concession(
         val ply: Int,
+        /** The game's own move number, which need not start at 1. */
+        val fullmoveNumber: Int,
         val san: String,
         val bestSan: String,
         override val marks: List<MarkedSquare> = emptyList(),

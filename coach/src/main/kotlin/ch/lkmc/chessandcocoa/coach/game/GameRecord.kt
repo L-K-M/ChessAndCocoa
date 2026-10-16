@@ -24,6 +24,7 @@ data class AbandonedBranch(
     val decisions: List<DecisionRecord>,
     val assessments: List<MoveAssessment>,
     val events: List<TeachingEvent>,
+    val hints: List<HintUse> = emptyList(),
 )
 
 /** Hints shown for one human decision; any hint makes the move assisted (Section 4.3). */

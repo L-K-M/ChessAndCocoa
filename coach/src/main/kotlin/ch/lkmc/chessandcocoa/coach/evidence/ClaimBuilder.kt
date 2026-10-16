@@ -62,10 +62,11 @@ object ClaimBuilder {
     }
 
     /** Review-only claims: every deliberate concession, disclosed after the game (Section 9.3). */
-    fun concessions(decisions: List<DecisionRecord>): List<Claim> = decisions
+    fun concessions(game: Game, decisions: List<DecisionRecord>): List<Claim> = decisions
         .filter { it.selectionBasis == SelectionBasis.DIFFICULTY_CONCESSION }
-        .map { decision ->
-            Claim.Concession(decision.ply, decision.san, decision.candidates.firstOrNull()?.san ?: decision.san)
+        .mapNotNull { decision ->
+            val position = game.positions.getOrNull(decision.ply) ?: return@mapNotNull null
+            Claim.Concession(decision.ply, position.fullmoveNumber, decision.san, decision.candidates.firstOrNull()?.san ?: decision.san)
         }
 
     private fun tacticClaim(parent: Game, after: Game, assessment: MoveAssessment, finding: TacticalFinding): Claim? = when (finding) {
@@ -93,6 +94,7 @@ object ClaimBuilder {
             captureSan = finding.captureSan,
             marks = listOf(MarkedSquare(finding.square, SquareRole.TARGET), MarkedSquare(finding.capture.from, SquareRole.ATTACKER)),
             continuation = continuation(after, listOf(finding.capture)),
+            alreadyExposed = finding.alreadyExposed,
         )
 
         is TacticalFinding.MissedWin -> Claim.MissedWin(

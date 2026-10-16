@@ -123,7 +123,7 @@ object Report {
             appendLine("Shortfall of the best plan action when too costly (centipawns): p25 ${percentile(costs.map(Int::toLong), 25.0)}, " +
                 "median ${percentile(costs.map(Int::toLong), 50.0)}, p75 ${percentile(costs.map(Int::toLong), 75.0)}.")
         }
-        val blocks = considered.mapNotNull { it.assessment }.flatMap { it.refutations }.groupingBy { it.block }.eachCount()
+        val blocks = considered.mapNotNull { it.assessment }.flatMap { it.refutations }.groupingBy { it.block?.name ?: it.outcome.name }.eachCount()
         appendLine()
         appendLine("Refuting probe branches by reason: " + blocks.entries.joinToString { "${it.key}: ${it.value}" }.ifEmpty { "none" } + ".")
         appendLine()

@@ -32,6 +32,12 @@ data class AnalystBudgets(
     val assessMultiPv: Int = 3,
     /** Strong replies tested per plan probe, before the template challenge. */
     val probeReplies: Int = 3,
+    /**
+     * A probe reply within this of the best reply is "strong" and may refute
+     * a plan. Fixed, so a gentler profile never checks more replies than a
+     * keener one (concept Section 9.4).
+     */
+    val strongReplyCp: Int = 50,
 )
 
 /** A search about a [Game] position, with the side to move recorded for score normalization. */

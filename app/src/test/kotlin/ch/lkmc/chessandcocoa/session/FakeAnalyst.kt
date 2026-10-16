@@ -7,6 +7,7 @@ import ch.lkmc.chessandcocoa.coach.analysis.Analyst
 import ch.lkmc.chessandcocoa.engine.AnalysisRequest
 import ch.lkmc.chessandcocoa.engine.AnalysisResult
 import ch.lkmc.chessandcocoa.engine.CandidateLine
+import ch.lkmc.chessandcocoa.engine.EngineException
 import ch.lkmc.chessandcocoa.engine.Score
 import ch.lkmc.chessandcocoa.engine.ScoreBound
 import kotlinx.coroutines.CompletableDeferred
@@ -20,6 +21,10 @@ class FakeAnalyst : Analyst {
     @Volatile
     var gate: CompletableDeferred<Unit>? = null
 
+    /** The next this many searches fail, as an engine that stopped working would. */
+    @Volatile
+    var failures = 0
+
     override var searchCount = 0
         private set
     override var nodeCount = 0L
@@ -27,6 +32,10 @@ class FakeAnalyst : Analyst {
 
     override suspend fun analyze(request: AnalysisRequest): AnalysisResult {
         gate?.await()
+        if (failures > 0) {
+            failures--
+            throw EngineException("fake engine failure")
+        }
         searchCount++
         val game = Game.fromMoves(request.initialFen, request.moves.map(Move::parseUci))
         val legal = game.current.legalMoves().map { it.uci }

@@ -11,6 +11,7 @@ import ch.lkmc.chessandcocoa.coach.decide.DecisionInput
 import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.decide.MoveSelector
+import ch.lkmc.chessandcocoa.coach.decide.PlanTransition
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
@@ -123,11 +124,11 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
         val decision = outcome.record
         val after = game.play(decision.move)
 
-        // Only plans the player has already seen may be narrated as ending (no spoilers).
+        // Only plans the player has already seen may be narrated as pausing or ending (no spoilers).
         val claims = buildList {
             after.outcome()?.let { add(Claim.GameOver(it.winner, it.reason, record.humanSide)) }
             decision.transitions
-                .filter { it.episodeId in record.revealedEpisodes && it.from == PlanStatus.ACTIVE && it.to != PlanStatus.ACTIVE }
+                .filter { it.episodeId in record.revealedEpisodes && isNarrated(it) }
                 .forEach { transition ->
                     val episode = outcome.episodes.first { it.episodeId == transition.episodeId }
                     add(Claim.PlanTransitionClaim(episode.family, episode.current.targetSquare, transition.reason))
@@ -173,6 +174,7 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
             decisions = record.decisions.filter { it.ply >= targetPly },
             assessments = record.assessments.filter { it.ply >= targetPly },
             events = record.events.filter { it.ply > targetPly },
+            hints = record.hints.filter { it.ply > targetPly },
         )
         return record.copy(
             branchId = "b$branchNumber",
@@ -182,7 +184,8 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
             assessments = record.assessments.filter { it.ply < targetPly },
             episodes = record.episodes.mapNotNull { it.asOf(targetPly - 1) },
             events = record.events.filter { it.ply <= targetPly },
-            hints = record.hints.filter { it.ply < targetPly },
+            // The player is back at a decision whose hints they have seen: it stays assisted.
+            hints = record.hints.filter { it.ply <= targetPly },
             abandoned = record.abandoned + abandoned,
             resignedBy = null,
             updatedAtMillis = nowMillis,
@@ -198,6 +201,13 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
 
     /** The last decision recorded before the current position, for evidence views. */
     fun decisionBefore(record: GameRecord): DecisionRecord? = record.lastDecision
+
+    /** An active plan pausing or ending, or a suspended one ending; resuming speaks through the next move. */
+    private fun isNarrated(transition: PlanTransition): Boolean = when (transition.from) {
+        PlanStatus.ACTIVE -> transition.to != PlanStatus.ACTIVE
+        PlanStatus.SUSPENDED -> transition.to != PlanStatus.ACTIVE && transition.to != PlanStatus.SUSPENDED
+        else -> false
+    }
 
     private fun moveLabel(position: Position, move: Move): String =
         Renderer.moveLabel(position.fullmoveNumber, position.sideToMove == Side.WHITE, position.san(move))
