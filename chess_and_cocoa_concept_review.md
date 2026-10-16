@@ -1,9 +1,9 @@
 # Chess & Cocoa concept review (document v0.2)
 
-Independent review of `chess_and_cocoa_concept.md` version 0.2, dated October 16, 2026. Section numbers refer to version 0.2. Version 0.3 of the concept applies the owner decisions in Section G and the amendments in Section E.
+Independent review of `chess_and_cocoa_concept.md` version 0.2, dated October 16, 2026. Section numbers refer to version 0.2. Version 0.3 of the concept applies the owner decisions in Section G and the amendments in Section E. Version 0.4 applies the later switch to GPL-3.0-or-later and Stockfish (Section G). Sections A–F describe the repository as reviewed.
 
 **Assumption:** one experienced developer or a small team (2–3). The document does not say.
-**Method:** I read the whole document, and Section 18 was not executed. Chess claims were checked with python-chess 1.11.2 (rules) and Stockfish 19 (official build, Threads=1, node-limited) on a shared desktop Xeon W-2145. Primary sources were fetched 2026-10-16. Independent helper reviews (Devin swe-2-max, GLM-5.3, DeepSeek V4.1 Flash via Venice) were cross-checked; one helper chess claim was wrong and is excluded. The verification scripts were run locally and are not committed, because they import python-chess (GPL-3.0+).
+**Method:** I read the whole document, and Section 18 was not executed. Chess claims were checked with python-chess 1.11.2 (rules) and Stockfish 19 (official build, Threads=1, node-limited) on a shared desktop Xeon W-2145. Primary sources were fetched 2026-10-16. Independent helper reviews (Devin swe-2-max, GLM-5.3, DeepSeek V4.1 Flash via Venice) were cross-checked; one helper chess claim was wrong and is excluded. The verification scripts were run locally and were not committed, because they import python-chess (GPL-3.0+) and the repository was then under the Unlicense.
 
 ## A. Executive verdict
 
@@ -323,7 +323,18 @@ Numbers are proposed targets, not established facts. Use the deterministic engin
 | Most liberal license, preferably public domain | Stockfish (GPLv3) is excluded. The engine must be permissive (table below). A permissive engine can be linked in-process with the NDK, which avoids the separate-executable workaround of risk 13. Rules core: chesslib (Apache-2.0) or an in-house public-domain core. Keep python-chess in the desktop harness only. The shipped app still carries third-party notices (AndroidX is Apache-2.0; the engine is MIT); "public domain" applies to the app's own code. |
 | Phones from the last two years; under 5 s per move most of the time, under 10 s in extreme cases | This budget is looser than E4's original rule of p95 ≤ 2 s. Proposed replacement for E4's decision rule: p90 ≤ 5 s and maximum ≤ 10 s on a mid-range and a flagship phone released in the last two years, over a 30-minute session. Support arm64 only. Desktop timing (Stockfish, one thread, about 0.63 M nodes/s) suggests the one-reply probe fits easily and deeper horizons might too. The chosen engine's speed on phones is unmeasured, so measure before relying on it. |
 
-### Permissively licensed engines
+### Revision: GPL-3.0-or-later and Stockfish (October 16, 2026)
+
+The owner relicensed the app under GPL-3.0-or-later to use Stockfish; decision F4 is closed. This supersedes the license row above and the engine recommendation below; the permissive engines remain fallbacks.
+
+- Stockfish is GPL-3.0-or-later (source headers). Every distribution must include the license and the full source, or a pointer to it (README).
+- Linking it in-process through the NDK is then the plain path, so risk 13's separate-executable workaround stays unnecessary.
+- This review's fixtures, determinism checks and desktop timing used Stockfish 19, so they now describe the shipped engine.
+- Its networks are trained on Leela data under the ODbL (README). ODbL section 4.3 requires a notice for publicly used produced works; a derivative database would also fall under section 4.4 share-alike. Show Stockfish's acknowledgment in the app, and have the qualified review decide which applies to the networks.
+- The official SF19 Android arm64 binary is about 101 MB uncompressed (measured). Measure the packaged app size early.
+- python-chess becomes license-compatible, so the reason for not committing the verification scripts no longer applies. It stays in the desktop harness, because the app has no Python runtime.
+
+### Permissive engine fallbacks
 
 | Engine | Code license | Network provenance | `MultiPV` / `searchmoves` / `go nodes` | Strength | Verification |
 |---|---|---|---|---|---|
@@ -337,10 +348,9 @@ Excluded or weaker options, all from the helper survey:
 - **Managed runtimes:** Leorik, Lynx and Sapling need .NET.
 - **Weaker:** handcrafted-evaluation engines below about 3000.
 
-**Recommendation:** Caissa is the primary candidate; it is the only one verified with all three analysis features. Before committing to it, ask its author to put a license on the network files (MIT or CC0). Arasan is the fallback, after a qualified review of the ODbL question for networks trained partly on Leela data. No legal conclusion is offered here.
+**Original recommendation (superseded):** Caissa is the primary candidate; it is the only one verified with all three analysis features. Before committing to it, ask its author to put a license on the network files (MIT or CC0). Arasan is the fallback, after a qualified review of the ODbL question for networks trained partly on Leela data. No legal conclusion is offered here.
 
 ### Owner actions
 
-1. Ask Caissa's author for a license on the network files.
-2. Obtain qualified licensing review before release.
-3. Choose two or three test phones from the last two years, at least one mid-range, for Experiment 4.
+1. Obtain qualified licensing review before release, including the ODbL question for Stockfish's networks.
+2. Choose two or three test phones from the last two years, at least one mid-range, for Experiment 4.

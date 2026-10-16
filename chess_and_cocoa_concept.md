@@ -2,11 +2,11 @@
 
 ## Android product concept and technical design brief
 
-**Document version:** 0.3  
+**Document version:** 0.4  
 **Date:** October 16, 2026  
 **Status:** Concept specification, not an implementation plan or a validated research result  
 **Intended reader:** A software architect or implementation-planning LLM with no access to the preceding conversation  
-**Revision focus:** Owner decisions (Section 2.4) and findings of the independent review in `chess_and_cocoa_concept_review.md`: a one-reply plan probe replaces deep decision-time rollouts, plan influence and plan impact get stricter tests, and the analyst engine must be permissively licensed
+**Revision focus:** The app is licensed GPL-3.0-or-later so it can ship Stockfish as the analyst engine (Sections 2.4, 14.4). Version 0.3 added the owner decisions (Section 2.4) and the findings of the independent review in `chess_and_cocoa_concept_review.md`: a one-reply plan probe replaces deep decision-time rollouts, and plan influence and plan impact get stricter tests
 
 > Build **Chess & Cocoa**, a cozy Android chess game that teaches through play. Make the experience calm, welcoming, and unhurried. Its computer opponent chooses explicit, testable plans, explains the purpose of its moves, and explains how the human's responses affect those plans. An established chess engine checks move quality; it does not substitute for the application's strategic planner. Warm presentation must never come at the expense of accurate feedback.
 
@@ -118,7 +118,7 @@ The selected name is not a statement of trademark clearance or domain/handle ava
 
 ### 2.2 Recommended starting assumptions
 
-Target Android phones first, standard chess only, and single-player games against the application. Prefer an offline-capable core, deterministic explanation templates, and a small hand-authored plan repertoire. Use an established, permissively licensed engine as the analyst rather than writing a new tactical search engine (Section 14.4).
+Target Android phones first, standard chess only, and single-player games against the application. Prefer an offline-capable core, deterministic explanation templates, and a small hand-authored plan repertoire. Use Stockfish as the analyst rather than writing a new tactical search engine (Section 14.4).
 
 Kotlin with Jetpack Compose is a proposed application stack, not an irreversible requirement. A separate desktop research harness may be useful for testing planner ideas. It must not accidentally make a Python runtime or a remote service mandatory for the Android product.
 
@@ -139,7 +139,7 @@ Do not require a long-term plan in every position. Forced responses, immediate t
 | Learner band | Beginners first. Support improving players (roughly 1000–1600) later. | One architecture with per-band profiles: plan repertoire, difficulty profiles, and explanation depth (Sections 7.3, 9.3). |
 | Disclosure | By default, do not announce the computer's intentions before the player moves. Reveal them as the player makes choices, to assess each choice and explain its impact. | Default setting in Section 4.2. Plan-impact explanations are the main teaching moment (Section 10). |
 | Plans that work only against weak replies | Not supported; choose the simpler option. Plans must hold against strong replies. | No human-response model on the device and no recorded traps (Section 9.4). |
-| Distribution license | As liberal as possible, preferably public domain. | The application's own code is public domain. Shipped third-party components must be permissively licensed (Section 14.4). |
+| Distribution license | GPL-3.0-or-later, so the app can ship Stockfish. This replaces the earlier choice of public domain. | Stockfish is the analyst engine. Every build ships with its complete source or a pointer to it; dependencies must be GPLv3-compatible (Section 14.4). |
 | Devices and latency | Phones released within the last two years. Under 5 seconds per computer move most of the time, under 10 seconds in extreme cases, if achievable. | Targets to validate on devices (Section 14.2). |
 
 ---
@@ -292,7 +292,7 @@ The arrows describe responsibilities, not a requirement to implement separate se
 | Renderer | Produce template text and interactive board evidence from the same structured claims. |
 | Persistence | Preserve games, decision records, plan episodes, settings, and optional learning observations. |
 
-The analyst must be a permissively licensed UCI engine (Section 14.4). It must support `MultiPV` for multiple candidate lines, `searchmoves` to restrict root candidates, node- or depth-limited search, mate scores, and deterministic single-thread analysis, and it must build for Android arm64. Caissa is the primary candidate and Arasan the alternative. Stockfish offers these features [S1] but is GPLv3, so it is not the default. The application's planner must supply the goal representation and multi-turn control.
+The analyst is Stockfish, a UCI engine (Section 14.4). It supports `MultiPV` for multiple candidate lines, `searchmoves` to restrict root candidates, node- or depth-limited search, mate scores, and deterministic single-thread analysis [S1], and official Android ARM builds exist [S3]. A replacement engine must offer the same features. The application's planner must supply the goal representation and multi-turn control.
 
 ---
 
@@ -743,7 +743,9 @@ This fixture tests legal evidence and response interpretation. It does **not** d
 
 ### 14.1 Local engine integration
 
-Target arm64 only; phones from the last two years are 64-bit. Android's NDK supports native C/C++ components, and a permissively licensed engine can be linked into the app through it, which is the documented integration path. Running an engine as a separate executable is restricted: apps targeting API 29 or higher cannot execute files in the app's home directory, and the community workaround of packaging the executable as a native library is not officially documented. On Google Play, native code in apps targeting API 35 or higher must support 16 KB memory pages. These are useful constraints and starting points, not proof that a particular engine package or integration method will work unchanged in the intended application. [S8, S9, S10]
+Target arm64 only; phones from the last two years are 64-bit. Android's NDK supports native C/C++ components, and Stockfish can be linked into the app through it, which is the documented integration path. Running an engine as a separate executable is restricted: apps targeting API 29 or higher cannot execute files in the app's home directory, and the community workaround of packaging the executable as a native library is not officially documented. On Google Play, native code in apps targeting API 35 or higher must support 16 KB memory pages. These are useful constraints and starting points, not proof that a particular engine package or integration method will work unchanged in the intended application. [S8, S9, S10]
+
+Binary distributions of Stockfish embed its evaluation network [S2]. The official Stockfish 19 Android arm64 binary measured about 101 MB uncompressed for the concept review. Measure the packaged app size early.
 
 The implementation planner should choose and validate a supported integration approach, including the native boundary, command transport, lifecycle, cancellation, packaging, and device architectures. Keep the conceptual engine adapter independent of whether analysis is in-process, in another process, or temporarily provided by a development backend.
 
@@ -755,7 +757,7 @@ Candidate generation, plan rollouts, and counterfactual analysis can multiply th
 
 Count searches per computer move. Assume one search per opponent turn and one plan-policy search per computer turn. A deterministic plan policy facing R sampled replies over H computer turns then needs Σ_{k<H} Rᵏ + Σ_{1≤k≤H} Rᵏ searches per plan: 4 for H = 1 and 52 for H = 3 with R = 3. Human-move assessment adds its own searches (Section 10.4). Start with two plan candidates, three replies, and a horizon of one reply (Section 8.2). These are starting hypotheses for benchmarking, not validated performance targets or sufficient analysis for every position.
 
-Latency targets: under 5 seconds per computer move most of the time and under 10 seconds in extreme cases, on phones released within the last two years. These are targets to validate on devices, not measurements. Bounded analysis of the position before the player's move may run while the player thinks.
+Latency targets: under 5 seconds per computer move most of the time and under 10 seconds in extreme cases, on phones released within the last two years. These are targets to validate on devices, not measurements. On the concept review's desktop, single-thread Stockfish 19 searched about 0.63 million nodes per second; phone speed is unmeasured. Bounded analysis of the position before the player's move may run while the player thinks.
 
 For anything recorded, compared, or ablated, use a deterministic analysis profile: one thread per engine instance, node- or depth-limited search, and an explicit hash policy. Multi-threaded, time-limited search is not reproducible. Run several single-thread instances in parallel for throughput.
 
@@ -779,19 +781,21 @@ Support rule outcomes and special moves through the authoritative game core. The
 
 ### 14.4 Licensing and data decisions
 
-Distribute under the most liberal license possible. The application's own code is public domain; the repository uses the Unlicense. Ship only permissively licensed third-party components (for example MIT, BSD, Apache-2.0, CC0) and keep their notices, so the distributed app carries third-party notices even though its own code is public domain. Keep copyleft components (GPL, AGPL) out of the shipped app.
+The application is licensed GPL-3.0-or-later, the license of Stockfish's source [S2], so the app can ship Stockfish. The repository's `LICENSE` holds the GPLv3 text; mark source files with `SPDX-License-Identifier: GPL-3.0-or-later`. Every distributed build must include the license and the complete source needed to rebuild it, or a pointer to that source, including the engine and any changes to it [S2]. Accept only GPLv3-compatible dependencies, such as Apache-2.0 components like AndroidX [S17], and keep their notices.
 
-Engine candidates, checked October 16, 2026:
+Stockfish's networks are trained on Leela Chess Zero data published under the Open Database License (ODbL), which Stockfish's README acknowledges [S2]. ODbL section 4.3 requires a notice when a work produced from the database is used publicly; a derivative database would also fall under the share-alike terms of section 4.4 [S18]. Show the same acknowledgment in the app's notices, and obtain qualified review of which terms apply to the networks.
+
+Engine options, checked October 16, 2026:
 
 | Engine | Code license | Evaluation network | UCI support | Notes |
 |---|---|---|---|---|
-| Caissa | MIT | Trained on its own self-play games; network files are hosted in a separate repository that declares no license | `MultiPV`, `searchmoves`, `go nodes` | C++, ARM NEON build. Confirm the network license with the author before shipping. [S11, S12] |
-| Arasan | MIT, explicitly including the network directory | Recent networks trained on Leela (lc0) and self-play games; Leela data is under the ODbL | `MultiPV`, `searchmoves`; no `go nodes` (use depth limits) | C++, ARM NEON build; CMake cross-compilation for Android is documented. Review the ODbL question before shipping. [S13] |
-| Stockfish | GPLv3 | Trained on Leela data (ODbL) | All required features | Official Android ARM builds exist. Excluded by the licensing goal. [S1, S2, S3] |
+| Stockfish | GPL-3.0-or-later | Trained on Leela data (ODbL) | All required features | Selected. Official Android ARM builds exist. [S1, S2, S3] |
+| Caissa | MIT | Trained on its own self-play games; network files are hosted in a separate repository that declares no license | `MultiPV`, `searchmoves`, `go nodes` | Fallback if the app returns to a permissive license; the network license must be confirmed with the author first. [S11, S12] |
+| Arasan | MIT, explicitly including the network directory | Recent networks trained on Leela (lc0) and self-play games; Leela data is under the ODbL | `MultiPV`, `searchmoves`; no `go nodes` (use depth limits) | Second fallback; CMake cross-compilation for Android is documented. [S13] |
 
-Rules core: python-chess is GPL-3.0+ [S15], so keep it in the desktop research harness and out of shipped code. chesslib (Apache-2.0) [S14] or an in-house public-domain rules core can serve the Android game core. The Lichess puzzle-generation repository is AGPLv3; use it as a reference only, not as a code source. [S7]
+Rules core: python-chess (GPL-3.0-or-later) [S15] is license-compatible but needs a Python runtime, so keep it in the desktop research harness (Section 2.2). chesslib (Apache-2.0) [S14] or an in-house rules core can serve the Android game core. The Lichess puzzle-generation repository is AGPLv3; use it as a reference only, not as a code source. [S7]
 
-Make licensing a release gate and an early architecture decision, not a footnote after native integration. If a copyleft engine is reconsidered, do not assume that a process boundary or a wrapper automatically resolves license compatibility. Obtain qualified review where needed; this document does not determine legal compliance.
+Make license compliance a release gate: every build ships with the license text, its complete source or a pointer to it, third-party notices, and the ODbL acknowledgment. Obtain qualified review where needed; this document does not determine legal compliance.
 
 Before public release, complete a naming review for Chess & Cocoa in the intended markets and verify the chosen domain, handles, and application identifiers separately. Do not claim that this concept document clears the name.
 
@@ -928,7 +932,7 @@ Run the five experiments in Section D of `chess_and_cocoa_concept_review.md`. Th
 | Narrow templates may produce sparse commentary | Measure coverage and improve targeted repertoire without weakening evidence requirements. |
 | Plan continuity may become stubbornness | Define tactical overrides, abandonment, and explicit uncertainty handling. |
 | Revealing intentions may remove challenge | Default to revealing intentions only after the player's choice (Section 4.2); measure the effect of disclosure timing. |
-| Dependency licensing may constrain distribution | Ship only permissive components. Confirm the Caissa network license, or review Arasan's ODbL question, before committing to packaging and release strategy (Section 14.4). |
+| GPL obligations or the ODbL network question may constrain distribution | Ship source and notices with every build, accept only GPLv3-compatible dependencies, and obtain qualified review of the ODbL question before release (Section 14.4). |
 | Cozy presentation may become decorative clutter or obscure feedback | Prioritize board readability, restrained copy, accessibility, and quiet-mode acceptance tests. |
 | Warmth may become false reassurance or unannounced easier play | Preserve independent analysis, explicit difficulty controls, and evidence-equivalent wording. |
 | Selected brand may still require clearance | Resolve naming, domain, handle, and identifier checks before public release; selection is not verification. |
@@ -1019,12 +1023,12 @@ or optional language-model features.
 
 ## 19. Verified technical references
 
-References S1–S8 are retained from version 0.1. S9–S16 were added in version 0.3. All were recorded as checked on October 16, 2026. The sources support the existing-tool facts cited in this document, not the proposed architecture's effectiveness. Recheck current versions, options, and licenses during implementation planning.
+References S1–S8 are retained from version 0.1. S9–S16 were added in version 0.3 and S17–S18 in version 0.4. All were recorded as checked on October 16, 2026. The sources support the existing-tool facts cited in this document, not the proposed architecture's effectiveness. Recheck current versions, options, and licenses during implementation planning.
 
 **[S1] Stockfish: UCI Protocol and Stockfish Commands.** Engine communication, candidate lines, restricted root search, history handling, search configuration, and WDL interpretation.  
 `https://official-stockfish.github.io/docs/stockfish-wiki/UCI-Protocol-and-Stockfish-Commands.html`
 
-**[S2] Official Stockfish repository.** Source distribution and GPLv3 licensing information.  
+**[S2] Official Stockfish repository.** Source distribution, GPL-3.0-or-later license, terms of use, embedded network, and acknowledgment of Leela Chess Zero training data under the ODbL.  
 `https://github.com/official-stockfish/Stockfish`
 
 **[S3] Official Stockfish downloads.** Available platform builds, including Android ARM.  
@@ -1068,6 +1072,12 @@ References S1–S8 are retained from version 0.1. S9–S16 were added in version
 
 **[S16] Maia-2.** MIT-licensed human-move prediction model; candidate offline test opponent.  
 `https://github.com/CSSLab/maia2`
+
+**[S17] Apache Software Foundation: GPL compatibility.** Apache-2.0 software can be included in GPLv3 projects.  
+`https://www.apache.org/licenses/GPL-compatibility.html`
+
+**[S18] Open Database License 1.0.** Section 4.3, notice for publicly used produced works; section 4.4, share-alike for derivative databases.  
+`https://opendatacommons.org/licenses/odbl/odbl-10.txt`
 
 ---
 
