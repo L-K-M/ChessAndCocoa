@@ -1,4 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Identity (concept Section 1.4): fixed by the owner. -->
     <string name="app_name" translatable="false">Chess &amp; Cocoa</string>
+    <string name="app_descriptor">a cozy chess teaching app</string>
+    <string name="app_tagline">Play a game. Understand the moves.</string>
+
+    <!-- Home -->
+    <string name="action_continue">Continue</string>
+    <string name="action_new_game">New game</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_about">About &amp; licenses</string>
+    <string name="engine_starting">Warming up the chess engine…</string>
+
+    <!-- New game -->
+    <string name="new_game_title">New game</string>
+    <string name="new_game_side">Play as</string>
+    <string name="side_white">White</string>
+    <string name="side_black">Black</string>
+    <string name="side_random">Either</string>
+    <string name="new_game_opponent">Opponent</string>
+    <string name="difficulty_gentle">Gentle</string>
+    <string name="difficulty_gentle_desc">Thinks less deeply and sometimes picks an easier move on purpose.</string>
+    <string name="difficulty_steady">Steady</string>
+    <string name="difficulty_steady_desc">A fair challenge once you know how the pieces move.</string>
+    <string name="difficulty_keen">Keen</string>
+    <string name="difficulty_keen_desc">Plays its plans carefully and rarely gives anything away.</string>
+    <string name="new_game_untimed">Games are untimed. Take as long as you like.</string>
+    <string name="new_game_start">Start</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Game -->
+    <string name="status_your_move">Your move</string>
+    <string name="status_your_move_check">Your move. You are in check.</string>
+    <string name="status_assessing">Looking at your move…</string>
+    <string name="status_thinking">Thinking about my move…</string>
+    <string name="status_hinting">Finding a hint…</string>
+    <string name="status_you_won">You won.</string>
+    <string name="status_you_lost">I won this one.</string>
+    <string name="status_draw">Draw.</string>
+    <string name="feedback_show_why">Show me why</string>
+    <string name="feedback_hide">Hide</string>
+    <string name="action_hint">Hint</string>
+    <string name="action_more_hint">Another hint</string>
+    <string name="action_take_back">Take back</string>
+    <string name="action_review">Review</string>
+    <string name="action_resign">Resign</string>
+    <string name="action_more">More</string>
+    <string name="action_back">Back</string>
+    <string name="resign_title">Resign this game?</string>
+    <string name="resign_text">You can also keep playing, or take back moves and try something else.</string>
+    <string name="resign_keep_playing">Keep playing</string>
+    <string name="moves_title">Moves</string>
+    <string name="promotion_title">Promote the pawn to</string>
+    <string name="hint_assisted_note">Moves made after a hint are marked as assisted in the review.</string>
+    <string name="error_engine">The chess engine is not available, so I can\'t play or check moves right now.</string>
+    <string name="error_save">Your game could not be saved.</string>
+    <string name="action_ok">OK</string>
+
+    <!-- Evidence ("Show me why"): replays without touching the live game. -->
+    <string name="evidence_title">Why</string>
+    <string name="evidence_start_after">After your move</string>
+    <string name="evidence_start_before">Before your move</string>
+    <string name="evidence_step_back">Previous step</string>
+    <string name="evidence_step_forward">Next step</string>
+    <string name="evidence_legend">◯ target   ▲ attacker   ■ defender   ✕ threat</string>
+    <string name="evidence_live_untouched">Exploring here does not change your game.</string>
+
+    <!-- Review -->
+    <string name="review_title">Review</string>
+    <string name="review_plans">My plans</string>
+    <string name="review_moments">Moments to look at</string>
+    <string name="review_concessions">Easier moves I chose on purpose</string>
+    <string name="review_assisted">%1$d of %2$d of your moves were played after a hint.</string>
+    <string name="review_nothing">Nothing stood out in this game.</string>
+    <string name="review_in_progress">The game is still going. Spoilers about my plans are shown here.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_commentary">How much I explain</string>
+    <string name="commentary_quiet">Quiet</string>
+    <string name="commentary_quiet_desc">Only serious moments.</string>
+    <string name="commentary_normal">Normal</string>
+    <string name="commentary_normal_desc">Serious moments and how your moves affect my plans.</string>
+    <string name="commentary_detailed">Detailed</string>
+    <string name="commentary_detailed_desc">Also notes on good moves and my plan changes.</string>
+    <string name="settings_disclosure">My intentions</string>
+    <string name="disclosure_after">After your move</string>
+    <string name="disclosure_after_desc">I reveal what I was planning once your move has touched it.</string>
+    <string name="disclosure_review">Only in the review</string>
+    <string name="disclosure_review_desc">I keep my plans to myself until the review.</string>
+    <string name="settings_numbers">Show engine numbers</string>
+    <string name="settings_numbers_desc">Adds rough pawn values to explanations.</string>
+    <string name="settings_coordinates">Board coordinates</string>
+    <string name="settings_contrast">High-contrast board</string>
+    <string name="settings_motion">Reduce motion</string>
+    <string name="settings_separate_note">These settings never change how strongly I play or how carefully moves are checked.</string>
+
+    <!-- About and notices (concept Section 14.4 release gate) -->
+    <string name="about_title">About &amp; licenses</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license">Chess &amp; Cocoa is free software under the GNU General Public License, version 3 or later. It comes with no warranty.</string>
+    <string name="about_source">Complete source code, including the engine: %1$s</string>
+    <string name="about_stockfish">Stockfish 19, the analysis engine, is © the Stockfish developers and licensed GPL-3.0-or-later. Its source is included in the app\'s source repository.</string>
+    <string name="about_leela">Stockfish\'s neural network was trained on data from the Leela Chess Zero project, made available under the Open Database License (ODbL).</string>
+    <string name="about_pieces">Chess pieces by Colin M.L. Burnett, GPL-2.0-or-later.</string>
+    <string name="about_libraries">Built with Kotlin, Jetpack Compose and AndroidX (Apache License 2.0) and kotlinx libraries (Apache License 2.0).</string>
+    <string name="about_view_license">Read the GPL</string>
+    <string name="about_view_notices">Third-party notices</string>
+    <string name="source_url" translatable="false">https://github.com/L-K-M/ChessAndCocoa</string>
+
+    <!-- Accessibility: squares and pieces -->
+    <string name="square_empty">%1$s, empty</string>
+    <string name="square_piece">%1$s, %2$s</string>
+    <string name="piece_named">%1$s %2$s</string>
+    <string name="piece_pawn">pawn</string>
+    <string name="piece_knight">knight</string>
+    <string name="piece_bishop">bishop</string>
+    <string name="piece_rook">rook</string>
+    <string name="piece_queen">queen</string>
+    <string name="piece_king">king</string>
+    <string name="state_selected">selected</string>
+    <string name="state_move_here">you can move here</string>
+    <string name="state_capture">you can capture here</string>
+    <string name="state_check">in check</string>
+    <string name="state_last_move">last move</string>
+    <string name="mark_target">target</string>
+    <string name="mark_attacker">attacker</string>
+    <string name="mark_defender">defender</string>
+    <string name="mark_moved">move</string>
+    <string name="mark_threat">threat</string>
 </resources>

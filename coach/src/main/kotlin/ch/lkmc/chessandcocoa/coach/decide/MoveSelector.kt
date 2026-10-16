@@ -324,7 +324,8 @@ class MoveSelector(private val searcher: Searcher, private val budgets: AnalystB
     private companion object {
         /** Score difference treated as a tie between two candidates (Section 9.1 "broke a tie"). */
         const val TIE_CP = 10
-        const val MATERIAL_THREAT_CP = PieceType.KNIGHT.value - PieceType.PAWN.value
+        /** A minor piece net of a pawn: big enough to demand an answer. */
+        const val MATERIAL_THREAT_CP = 200
         const val PERCENT = 100
         const val SEED_MIX = 1_000_003L
     }

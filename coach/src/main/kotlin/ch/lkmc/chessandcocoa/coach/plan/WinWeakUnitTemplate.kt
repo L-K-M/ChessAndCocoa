@@ -108,9 +108,7 @@ object WinWeakUnitTemplate : PlanTemplate {
             }
         }
 
-        return actions
-            .sortedWith(compareByDescending<PlanAction> { PlanTemplate.advancement(it.subgoal) }.thenBy { it.move.uci })
-            .take(MAX_ACTIONS)
+        return PlanTemplate.order(position, actions, MAX_ACTIONS)
     }
 
     override fun challenges(game: Game, plan: PlanInstance): List<Move> {

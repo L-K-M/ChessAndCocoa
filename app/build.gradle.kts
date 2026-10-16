@@ -133,9 +133,43 @@ tasks.configureEach {
 }
 // ==== end Stockfish native engine ========================================
 
+// ==== Legal assets =========================================================
+// The GPL text and third-party notices ship inside the app (concept Section
+// 14.4 release gate), copied from their single sources into generated assets.
+abstract class CopyLegalAssets : DefaultTask() {
+    @get:InputFiles
+    abstract val sources: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val target = outputDir.get().asFile.resolve("legal")
+        target.deleteRecursively()
+        target.mkdirs()
+        sources.files.forEach { file ->
+            val name = if (file.name == "LICENSE") "LICENSE.txt" else file.name
+            file.copyTo(target.resolve(name), overwrite = true)
+        }
+    }
+}
+
+val copyLegalAssets = tasks.register<CopyLegalAssets>("copyLegalAssets") {
+    sources.from(rootDir.resolve("LICENSE"), rootDir.resolve("legal/THIRD_PARTY_NOTICES.md"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLegalAssets, CopyLegalAssets::outputDir)
+    }
+}
+// ==== end Legal assets =====================================================
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
     }
 }
 

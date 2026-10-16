@@ -3,6 +3,7 @@ package ch.lkmc.chessandcocoa.coach.plan
 
 import ch.lkmc.chessandcocoa.chess.Game
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 
@@ -50,6 +51,33 @@ interface PlanTemplate {
         val all: List<PlanTemplate> = listOf(AttackKingSquareTemplate, WinWeakUnitTemplate)
 
         fun of(family: PlanFamily): PlanTemplate = all.first { it.family == family }
+
+        /**
+         * Most direct first: further-advanced subgoals, then mates, then the
+         * larger static exchange, then UCI order so the result is deterministic.
+         */
+        fun order(position: Position, actions: List<PlanAction>, limit: Int): List<PlanAction> = actions
+            .sortedWith(
+                compareByDescending<PlanAction> { advancement(it.subgoal) }
+                    .thenByDescending { position.play(it.move).isCheckmate() }
+                    .thenByDescending { if (position.isCapture(it.move)) position.see(it.move) else 0 }
+                    .thenBy { it.move.uci },
+            )
+            .take(limit)
+
+        /**
+         * The plan's most direct next step if its owner could move now, found
+         * with the opponent's turn passed. A diagnostic for hints and impact
+         * baselines only, never presented as a line (Section 6.3).
+         */
+        fun nextStep(game: Game, plan: PlanInstance): PlanAction? {
+            val template = of(plan.family)
+            val passed = game.current.passTurn() ?: return null
+            val square = template.locate(game, plan) ?: return null
+            val asOwner = Game.new(passed.fen())
+            val rebound = plan.copy(target = plan.target.copy(square = square, pieceId = plan.target.pieceId?.let { asOwner.pieceIdAt(square) }))
+            return template.actions(asOwner, rebound).firstOrNull()
+        }
     }
 }
 
