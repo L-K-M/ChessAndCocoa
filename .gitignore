@@ -1,0 +1,24 @@
+build/
+dist/
+.gradle/
+.kotlin/
+.cxx/
+local.properties
+.idea/
+.vscode/
+*.iml
+captures/
+.DS_Store
+__pycache__/
+*.pyc
+
+# Stockfish networks are ~100 MB; scripts/fetch-nnue.sh downloads and
+# verifies them by hash instead of committing them.
+*.nnue
+
+# Real signing keys must never be committed. The checked-in app/debug.keystore
+# is a deliberate exception (zero-secret CI signing, as in sibling repos).
+*.jks
+*.keystore
+*.p12
+!app/debug.keystore
