@@ -2,7 +2,9 @@
 package ch.lkmc.chessandcocoa.coach
 
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
+import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
@@ -21,6 +23,21 @@ class CoachGameTest {
 
     private val preferences = ExperiencePreferences(commentary = CommentaryLevel.DETAILED)
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true; allowStructuredMapKeys = true }
+
+    @Test
+    fun thePlayersMateBlunderGetsTheSameAssessmentOnGentleAndKeen() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val fen = gameOf("e4", "e5", "Bc4", "Nc6", "Qh5").current.fen()
+        val steps = listOf(Difficulty.GENTLE, Difficulty.KEEN).map { difficulty ->
+            val record = coach.newGame("analyst-$difficulty", Side.BLACK, difficulty, 1, 0, fen)
+            coach.playHumanMove(record, record.game.current.parseSan("Nf6"), preferences, 0)
+        }
+
+        val assessments = steps.map { it.record.assessments.single() }
+        assertEquals(QualityCategory.BLUNDER, assessments.first().quality.category)
+        assertEquals(assessments.first().quality, assessments.last().quality)
+        assertTrue(steps.all { step -> step.event?.claims?.any { it is Claim.AllowsMate } == true })
+    }
 
     @Test
     fun aGameKeepsItsHistoryHonestThroughHintsTakebacksAndSaves() = runBlocking {

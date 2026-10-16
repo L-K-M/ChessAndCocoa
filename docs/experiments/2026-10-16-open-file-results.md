@@ -1,5 +1,7 @@
 # Open-file plan: paired coverage check
 
+These results precede the [Gentle strength reduction](2026-10-16-gentle-calibration.md).
+
 The fourth plan family brings a rook through an open file to win a specific pawn. It uses the existing quality windows, plan limits and one-reply probe. The goal requires the pawn to be gone and material actually won; reaching a file or rank is only preparation.
 
 ## Setup

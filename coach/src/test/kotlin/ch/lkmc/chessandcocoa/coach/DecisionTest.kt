@@ -60,19 +60,23 @@ class DecisionTest {
     @Test
     fun ablationMatchesTheRecordedCounterfactual() = runBlocking {
         for (game in positions) {
-            val withPlans = decide(game, Difficulty.KEEN)
-            val withoutPlans = decide(game, Difficulty.KEEN, PlansSwitch.DISABLED)
-            assertEquals(withPlans.withoutPlanMove, withoutPlans.move)
-            assertEquals(PlanRole.NONE, withoutPlans.planRole)
+            for (difficulty in listOf(Difficulty.GENTLE, Difficulty.KEEN)) {
+                val withPlans = decide(game, difficulty)
+                val withoutPlans = decide(game, difficulty, PlansSwitch.DISABLED)
+                assertEquals(withPlans.withoutPlanMove, withoutPlans.move)
+                assertEquals(PlanRole.NONE, withoutPlans.planRole)
+            }
         }
     }
 
     @Test
     fun decisionsAreReproducible() = runBlocking {
         for (game in positions) {
-            val first = decide(game, Difficulty.STEADY)
-            val second = decide(game, Difficulty.STEADY)
-            assertEquals(first.copy(searches = 0, nodes = 0), second.copy(searches = 0, nodes = 0))
+            for (difficulty in listOf(Difficulty.GENTLE, Difficulty.STEADY)) {
+                val first = decide(game, difficulty)
+                val second = decide(game, difficulty)
+                assertEquals(first.copy(searches = 0, nodes = 0), second.copy(searches = 0, nodes = 0))
+            }
         }
     }
 

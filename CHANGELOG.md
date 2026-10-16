@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make Gentle weaker: shallower selection, more candidate moves, and more
+  frequent bounded concessions, including missed defenses. Player
+  assessment stays at full strength.
 - Add a rook plan that uses an open file to reach a pawn, with recorded
   intentions, move-impact feedback and hints. Occupying a file alone does
   not count as success; the plan must win material.

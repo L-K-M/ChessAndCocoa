@@ -45,7 +45,7 @@ scripts/build-stockfish-host.sh
 - [`chess_and_cocoa_concept.md`](chess_and_cocoa_concept.md): the product concept and design brief.
 - [`chess_and_cocoa_concept_review.md`](chess_and_cocoa_concept_review.md): the independent review it was revised against.
 - [`docs/DESIGN.md`](docs/DESIGN.md): how the code implements the brief, with requirement traceability.
-- [`docs/experiments/`](docs/experiments/2026-10-16-open-file-results.md): results of the decision experiments.
+- [`docs/experiments/`](docs/experiments/2026-10-16-gentle-calibration.md): results of the decision experiments and difficulty checks.
 
 ## License
 

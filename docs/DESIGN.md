@@ -45,6 +45,12 @@ The plan policy ([`PlanPolicy`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/c
 
 The probe ([`PlanProbe`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/plan/PlanProbe.kt)) tests the three strongest replies plus one template challenge, then applies the policy once after each. A reply within 50 centipawns of the best reply is strong at every difficulty, so a gentler profile never checks more replies. A plan is refuted when a strong reply leaves it without an acceptable continuation or ends the game.
 
+### Difficulty
+
+Gentle searches 2,000 nodes for up to 12 candidate moves. When no plan is selected and an eligible alternative exists, its seeded fallback has a 70% chance to choose another ranked move within 400 centipawns of its best estimate. It can miss a material defense or choose a weaker legal response to check. Forced single moves and known mate scores are protected. Steady and Keen retain their original profiles and protected defenses.
+
+A deliberate concession carries no plan claim and is disclosed in the review. Plan policy, probe and player-assessment budgets stay fixed; weakening the opponent never weakens the checker. These profiles do not claim a human Elo.
+
 ### Plan families
 
 | Family | Target | Steps | Success (checked outside the template) |
@@ -75,13 +81,15 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 ## 5. Measured results
 
-The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). Latest comparison: [`docs/experiments/`](experiments/2026-10-16-open-file-results.md). In short:
+The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). The [four-family comparison](experiments/2026-10-16-open-file-results.md), before Gentle was weakened, found:
 
 - Policy identity held in all 304 re-run probe branches (E2).
 - Plans introduce or decide 13 to 19% of eligible moves, below the review's 30% threshold (E1). Specificity meets its target for Gentle only.
 - Median plan events shown per game: 1.5 (Gentle), 2.0 (Steady), 1.0 (Keen); the E3 threshold is 2.
 - The open-file family was chosen on three Gentle decisions, none for Steady and one for Keen. Its contribution remains small.
 - Phone latency is unmeasured: the numbers are desktop numbers.
+
+The [Gentle strength reduction](experiments/2026-10-16-gentle-calibration.md) then changed its result against the same proxy from 16 wins out of 16 to 3 wins and 13 losses. Median plan feedback increased to 2 events per game and all 89 replayed branches matched. Plan influence remains below target and episodes break sooner. Human beginner suitability still needs feedback.
 
 ## 6. Requirement traceability
 
@@ -95,7 +103,7 @@ The harness plays the real coach pipeline against a weakened-Stockfish learner p
 | R6 policy tests versus first-move tests | `PlanProbe` applies the plan policy after each reply | `DecisionTest.liveAndSimulatedPolicyMovesAgree`, harness E2 |
 | R7 continuity and narrated transitions | `Planner.revalidate`, transitions in records, `PlanTransitionClaim`, review episodes | `PlanTemplateTest.revalidationClosesAnEpisodeWhoseKingMovedAway` |
 | R8 abstain without support | Claims without evidence are not built or are dropped by the verifier | `CoachGameTest` |
-| R9 analyst independent of difficulty | `AnalystBudgets` versus `Difficulty.selectionNodes` | `GameSessionTest.experienceSettingsNeverChangeTheOpponent` |
+| R9 analyst independent of difficulty | `AnalystBudgets` versus `Difficulty.selectionNodes` | `CoachGameTest.thePlayersMateBlunderGetsTheSameAssessmentOnGentleAndKeen` |
 | R10 learning through play | Untimed games, nonmodal cards, hints and "Show me why" on demand | Screenshot tests |
 | R11 results tied to a revision | `GameRecord.revision`; the session drops stale results and cancelled jobs | `GameSessionTest.aTakebackDiscardsTheOpponentsStaleAnswer` |
 | R12 test correctness and faithfulness | Perft and python-chess fixtures, fixture tests, decision invariants, harness | All suites |

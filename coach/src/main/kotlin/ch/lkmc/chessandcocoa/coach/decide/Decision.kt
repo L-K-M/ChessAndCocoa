@@ -15,6 +15,9 @@ import ch.lkmc.chessandcocoa.engine.Score
 import ch.lkmc.chessandcocoa.engine.ScoreBound
 import kotlinx.serialization.Serializable
 
+/** Whether a detected threat rules out a deliberate weaker move. */
+internal enum class ConcessionScope { QUIET_ONLY, INCLUDING_DEFENSE }
+
 /**
  * Opponent strength profiles (concept Section 9.3). They weaken the
  * opponent's own move selection only; the analyst that checks the human and
@@ -33,8 +36,10 @@ enum class Difficulty(
     /** Chance, in percent, of a deliberately weaker move when no plan move is chosen. */
     val concessionPercent: Int,
     val concessionMaxLossCp: Int,
+    internal val concessionScope: ConcessionScope = ConcessionScope.QUIET_ONLY,
 ) {
-    GENTLE(selectionNodes = 20_000, candidateCount = 4, maxPlans = 1, planWindowCp = 80, concessionPercent = 35, concessionMaxLossCp = 250),
+    GENTLE(selectionNodes = 2_000, candidateCount = 12, maxPlans = 1, planWindowCp = 80, concessionPercent = 70, concessionMaxLossCp = 400,
+        concessionScope = ConcessionScope.INCLUDING_DEFENSE),
     STEADY(selectionNodes = 80_000, candidateCount = 4, maxPlans = 2, planWindowCp = 50, concessionPercent = 10, concessionMaxLossCp = 120),
     KEEN(selectionNodes = 250_000, candidateCount = 4, maxPlans = 2, planWindowCp = 30, concessionPercent = 0, concessionMaxLossCp = 0),
 }

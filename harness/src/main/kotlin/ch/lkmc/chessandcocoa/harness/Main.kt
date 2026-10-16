@@ -91,6 +91,18 @@ object Report {
             "Engine: host Stockfish 19, one thread per process, node-limited, hash cleared per search.")
         appendLine()
 
+        appendLine("## Results against the learner proxy")
+        appendLine()
+        appendLine("| App opponent result | Games |")
+        appendLine("|---|---|")
+        appendLine("| Win | ${games.count { it.record.outcome?.winner == it.record.humanSide.opposite }} |")
+        appendLine("| Draw | ${games.count { it.record.outcome != null && it.record.outcome?.winner == null }} |")
+        appendLine("| Loss | ${games.count { it.record.outcome?.winner == it.record.humanSide }} |")
+        appendLine("| Unfinished at the ply limit | ${games.count { it.record.outcome == null }} |")
+        appendLine()
+        appendLine("Unfinished games are not counted as draws. These results are not a human Elo calibration.")
+        appendLine()
+
         appendLine("## E3. Coverage in ordinary games")
         appendLine()
         appendLine("| Per game | Median | Mean | Min | Max |")

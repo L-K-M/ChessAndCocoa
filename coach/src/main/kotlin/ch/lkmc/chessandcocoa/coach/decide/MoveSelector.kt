@@ -196,7 +196,9 @@ class MoveSelector(private val searcher: Searcher, private val budgets: AnalystB
         val best = Move.parseUci(lines.first().move)
         val bestScore = root.score(lines.first(), side)
 
-        if (obligations.isNotEmpty()) return best to SelectionBasis.IMMEDIATE_OBLIGATION
+        // Gentle can miss a defense instead of always taking its best-ranked reply.
+        val protectedDefense = obligations.isNotEmpty() && input.difficulty.concessionScope == ConcessionScope.QUIET_ONLY
+        if (Obligation.FORCED_MOVE in obligations || protectedDefense) return best to SelectionBasis.IMMEDIATE_OBLIGATION
 
         if (input.difficulty.concessionPercent > 0 && !ScoreMath.isWinningMate(bestScore)) {
             val random = SplittableRandom(input.seed * SEED_MIX + input.game.ply)
@@ -210,6 +212,8 @@ class MoveSelector(private val searcher: Searcher, private val budgets: AnalystB
                 }
             }
         }
+
+        if (obligations.isNotEmpty()) return best to SelectionBasis.IMMEDIATE_OBLIGATION
 
         val tactic = ScoreMath.isWinningMate(bestScore) || (position.isCapture(best) && position.see(best) > 0)
         return best to if (tactic) SelectionBasis.TACTICAL_OPPORTUNITY else SelectionBasis.FALLBACK
