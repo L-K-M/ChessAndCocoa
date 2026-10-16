@@ -2,17 +2,17 @@
 
 ## Android product concept and technical design brief
 
-**Document version:** 0.2  
+**Document version:** 0.3  
 **Date:** October 16, 2026  
 **Status:** Concept specification, not an implementation plan or a validated research result  
 **Intended reader:** A software architect or implementation-planning LLM with no access to the preceding conversation  
-**Revision focus:** Selected product name and cozy experience requirements; the plan-aware reasoning architecture is retained
+**Revision focus:** Owner decisions (Section 2.4) and findings of the independent review in `chess_and_cocoa_concept_review.md`: a one-reply plan probe replaces deep decision-time rollouts, plan influence and plan impact get stricter tests, and the analyst engine must be permissively licensed
 
 > Build **Chess & Cocoa**, a cozy Android chess game that teaches through play. Make the experience calm, welcoming, and unhurried. Its computer opponent chooses explicit, testable plans, explains the purpose of its moves, and explains how the human's responses affect those plans. An established chess engine checks move quality; it does not substitute for the application's strategic planner. Warm presentation must never come at the expense of accurate feedback.
 
 This document defines the product, the essential reasoning architecture, proposed component contracts, and the evidence needed to trust the result. The next implementation planner should turn it into concrete technology choices, experiments, milestones, and engineering tasks. Recommendations and unresolved questions are distinguished from mandatory conceptual requirements.
 
-The central product hypothesis is that explaining the interaction between both players' plans will help people learn chess more effectively than isolated move labels or evaluation numbers. That educational benefit remains to be tested.
+The central product hypothesis is that explaining the interaction between both players' plans will help people learn chess more effectively than evidence-grounded explanations of equal quality added after move selection. That educational benefit remains to be tested.
 
 ---
 
@@ -29,7 +29,7 @@ The app should answer questions in the context of the current game:
 - Was my move effective overall, and why?
 - What should I pay attention to in a similar position?
 
-The primary audience assumption is beginners and improving recreational players. The initial implementation may assume basic familiarity with moving pieces, but should explain unfamiliar terms in context. Support for complete beginners can add legal-move guidance and brief, event-triggered rules explanations without making a tutorial a prerequisite.
+The first release targets beginners, for whom tactics come first and plans second. Improving recreational players (roughly 1000–1600) are a later target, served by a separate learner-band profile rather than a different architecture (Section 2.4). The initial implementation may assume basic familiarity with moving pieces, but should explain unfamiliar terms in context. Support for complete beginners can add legal-move guidance and brief, event-triggered rules explanations without making a tutorial a prerequisite.
 
 ### 1.2 The distinctive capability
 
@@ -55,11 +55,13 @@ Identify candidate goals
 
 The selected plan must have a real role in choosing the move. Merely attaching a plan label to the engine's preferred move is not sufficient.
 
+Plans influence selection among sound moves. Forced replies and many tactical moments carry no plan content, and explanations must not imply otherwise.
+
 ### 1.3 Illustrative feedback
 
 The following messages describe the desired style; they are not claims about a supplied chess position:
 
-> "I'm bringing another attacker toward your isolated pawn. My aim is to make it harder for you to defend."
+> "I was bringing another attacker toward your isolated pawn. My aim was to make it harder for you to defend."
 
 > "Your exchange removes one of the attackers I needed. I have to find another way to create pressure."
 
@@ -70,6 +72,8 @@ The following messages describe the desired style; they are not claims about a s
 > "That was not my original plan, but your last move has given me a new opportunity."
 
 The important content is the relationship between a decision, a goal, a response, and a consequence. The app should not invent a strategic story for every move.
+
+Under the default disclosure setting (Section 4.2), statements of intention appear only after the player's reply.
 
 ### 1.4 Selected name and product positioning
 
@@ -114,11 +118,11 @@ The selected name is not a statement of trademark clearance or domain/handle ava
 
 ### 2.2 Recommended starting assumptions
 
-Target Android phones first, standard chess only, and single-player games against the application. Prefer an offline-capable core, deterministic explanation templates, and a small hand-authored plan repertoire. Use an established engine as the analyst rather than writing a new tactical search engine.
+Target Android phones first, standard chess only, and single-player games against the application. Prefer an offline-capable core, deterministic explanation templates, and a small hand-authored plan repertoire. Use an established, permissively licensed engine as the analyst rather than writing a new tactical search engine (Section 14.4).
 
 Kotlin with Jetpack Compose is a proposed application stack, not an irreversible requirement. A separate desktop research harness may be useful for testing planner ideas. It must not accidentally make a Python runtime or a remote service mandatory for the Android product.
 
-The product name and cozy positioning in Section 1.4 are fixed. Exact artwork, palette values, typography, and optional sensory features are not. The app's business model, distribution license, minimum Android version, and supported device range have not been decided. Resolve those explicitly during implementation planning.
+The product name and cozy positioning in Section 1.4 are fixed. Exact artwork, palette values, typography, and optional sensory features are not. The distribution license, device range, and latency targets are set in Section 2.4. The business model and minimum Android version have not been decided. Resolve those explicitly during implementation planning.
 
 ### 2.3 Non-goals for the first release
 
@@ -127,6 +131,16 @@ Do not make the first release depend on unrestricted strategy invention, trainin
 Do not promise to identify a human player's actual intention. The system can describe a move's consequences and possible purposes, but recognizing a defensive effect does not prove the player anticipated it.
 
 Do not require a long-term plan in every position. Forced responses, immediate tactics, unsupported positions, and resource-limited analysis all need honest fallback behavior.
+
+### 2.4 Owner decisions (October 16, 2026)
+
+| Topic | Decision | Consequence |
+|---|---|---|
+| Learner band | Beginners first. Support improving players (roughly 1000–1600) later. | One architecture with per-band profiles: plan repertoire, difficulty profiles, and explanation depth (Sections 7.3, 9.3). |
+| Disclosure | By default, do not announce the computer's intentions before the player moves. Reveal them as the player makes choices, to assess each choice and explain its impact. | Default setting in Section 4.2. Plan-impact explanations are the main teaching moment (Section 10). |
+| Plans that work only against weak replies | Not supported; choose the simpler option. Plans must hold against strong replies. | No human-response model on the device and no recorded traps (Section 9.4). |
+| Distribution license | As liberal as possible, preferably public domain. | The application's own code is public domain. Shipped third-party components must be permissively licensed (Section 14.4). |
+| Devices and latency | Phones released within the last two years. Under 5 seconds per computer move most of the time, under 10 seconds in extreme cases, if achievable. | Targets to validate on devices (Section 14.2). |
 
 ---
 
@@ -172,25 +186,25 @@ The computer's subsequent explanations should refer back to an ongoing plan when
 
 ### 4.2 Guidance settings
 
-Use a teaching-oriented default, with explicit control over how much future information is revealed.
+By default, never announce the computer's intentions before the player moves. Reveal information as the player makes choices.
 
 | Setting | Intended behavior |
 |---|---|
-| Guided play | Explain selected computer intentions and major response effects during play. Hints may reveal future threats. |
-| Reduced guidance | Explain completed effects and answer requests, but avoid automatically revealing the next tactic. |
+| Reveal after the choice (default) | After each player move, reveal the part of the recorded intention that the move affected, assess the move, and explain its impact. Show that the intention was recorded before the move (R2). Keep later steps of the plan hidden until a later choice touches them. |
+| Hints on request | Voluntary and progressive. A hint may reveal a current threat or plan step. Moves made after a hint count as assisted. |
 | Review | Reveal stored intentions, tested alternatives, and plan transitions without spoiler restrictions. |
 
-These are recommended behaviors, not necessarily three separate screens or independently implemented modes. A single disclosure setting can support the first version.
+These are recommended behaviors, not necessarily three separate screens or independently implemented modes. A single disclosure setting can support the first version. Announcing intentions before the player moves would do the learner's threat detection for them; do not offer it as the default.
 
 The opponent and the coach have different presentation roles even when they share analysis. The coach may explain that a stronger response existed than the difficulty-controlled opponent chose. It must not imply that a weak reply proves the human's move was objectively sound.
 
 ### 4.3 Attention and tone
 
-Default to one primary teaching point per event. Prioritize immediate consequences and consequential plan changes over minor positional observations. Repeated statements about an unchanged goal should be suppressed.
+Default to one primary teaching point per event. Prioritize immediate consequences and consequential plan changes over minor positional observations. When the move assessment finds a material or decisive loss, the primary point states it; plan impact becomes the expansion. Repeated statements about an unchanged goal should be suppressed; narrate plan transitions (adopted, delayed, revised, abandoned) instead, so continuity stays visible.
 
 Use warm, plain-spoken, concrete language: patient rather than clinical, but never patronizing or falsely reassuring. Explain terminology on demand, with examples on the board. Do not automatically interrupt every move with a quiz, praise routine actions, or punish exploration with scolding. State serious consequences plainly; a quiet explanation of checkmate is more useful than either an alarm or a euphemism.
 
-Takebacks, optional hints, and "show me why" interactions should be supported without corrupting the original decision history. Track whether help was shown before treating a move as evidence of independent understanding.
+Takebacks, optional hints, and "show me why" interactions should be supported without corrupting the original decision history. Track whether help was shown before treating a move as evidence of independent understanding. Any hint or revealed intention counts as help.
 
 ### 4.4 Cozy interaction defaults
 
@@ -278,7 +292,7 @@ The arrows describe responsibilities, not a requirement to implement separate se
 | Renderer | Produce template text and interactive board evidence from the same structured claims. |
 | Persistence | Preserve games, decision records, plan episodes, settings, and optional learning observations. |
 
-Stockfish is a suitable analyst candidate: its UCI interface exposes evaluations and continuations, `MultiPV` returns multiple candidate lines, and `searchmoves` restricts root candidates. The application's planner must supply the goal representation and multi-turn control. [S1]
+The analyst must be a permissively licensed UCI engine (Section 14.4). It must support `MultiPV` for multiple candidate lines, `searchmoves` to restrict root candidates, node- or depth-limited search, mate scores, and deterministic single-thread analysis, and it must build for Android arm64. Caissa is the primary candidate and Arasan the alternative. Stockfish offers these features [S1] but is GPLv3, so it is not the default. The application's planner must supply the goal representation and multi-turn control.
 
 ---
 
@@ -337,7 +351,7 @@ The goal predicate must be specific enough to test. Avoid labels such as "improv
 
 **Dependencies:** A viable route exists; the maneuver is tactically affordable; support remains available; the target still has value; opposing counterplay does not become more urgent.
 
-**Success:** The knight reaches a useful role and analysis supports that role against tested responses. Merely visiting the square is not sufficient.
+**Success:** The knight reaches the square and a check independent of the template supports its value: against tested responses, engine evaluation with the goal achieved exceeds a matched alternative where it is frustrated, by a family-specific margin. Merely visiting the square is not sufficient.
 
 **Revision:** Choose another route or target while recording what changed.
 
@@ -347,7 +361,12 @@ Progress need not increase on every move. A preparatory exchange or a necessary 
 
 ### 7.3 Recommended initial strategic families
 
-Implement one or two narrow families well: pressure against a concrete pawn target, and a knight maneuver toward a useful square. Select curated positions where the intended dependencies can be demonstrated and tested.
+Implement one or two narrow families well. Choose them by measured frequency in games at the target level, and by whether success can be checked outside the template (material won, forced mate, tablebase result). For the beginner band:
+
+- **Win a weak unit:** add attackers to, or remove defenders of, an under-defended or pinned piece or pawn. Success is material won. This generalizes pressure against a concrete pawn target.
+- **Attack a weak king square:** build a mating or material threat against f7/f2 or the back rank. Success is mate or material won.
+
+The knight maneuver of Section 7.2 belongs to the improving-player band, because its success depends on the independent value check. Select curated positions where the intended dependencies can be demonstrated and tested, and measure coverage in ordinary games (Sections 16.6, 16.7).
 
 A later extension can address open-file use, passed-pawn creation, pawn breaks, or specialized endgame goals. Those are not automatically covered by the initial templates.
 
@@ -383,7 +402,7 @@ The plan validator asks:
 
 Both checks matter. A first move can be sound even though the proposed plan fails. If the only good continuation abandons the goal, mark that limitation rather than crediting the original plan with the unrelated good result.
 
-Stockfish's `searchmoves` only restricts the initial candidate moves of that search. It does not impose a goal or policy on later turns. Multi-turn plan testing therefore belongs in application-controlled rollouts or a deliberately modified search implementation. [S1]
+The UCI `searchmoves` parameter only restricts the initial candidate moves of that search. It does not impose a goal or policy on later turns. Multi-turn plan testing therefore belongs in application-controlled rollouts or a deliberately modified search implementation. [S1]
 
 ### 8.2 Bounded adversarial rollouts
 
@@ -395,7 +414,9 @@ For each promising plan:
 4. Record whether the goal advances, becomes delayed, requires revision, fails, or is abandoned.
 5. Stop at a defined budget, terminal state, or meaningful goal boundary.
 
-The simulated policy must match the policy intended for actual play. Do not let Stockfish play both sides after the first move and describe that as validation of your planner.
+Each template defines one deterministic plan policy: generate the template's legal actions, search them with root-restricted analysis under a fixed node or depth budget, and pick the best within the quality window. Rollouts and live play use this same function while the plan is active; the move selector only chooses which plan, obligation, or fallback to follow. Live play may still re-plan, so claims from rollouts are conditional on continued plan-following. Do not let the engine play both sides after the first move and describe that as validation of your planner.
+
+Start with a horizon of one reply on the device. After the plan's move, test the strongest replies plus one template challenge, then apply the plan policy once after each tested reply. This rejects plans that an immediate reply refutes. Run deeper rollouts offline to audit templates. Raise the on-device horizon for a family only when measurements show one reply is not enough and the latency targets still hold (Sections 14.2, 16.7).
 
 A defensive response that forces abandonment can demonstrate good adaptive behavior, but not successful execution of the abandoned goal. Keep those outcomes separate.
 
@@ -415,6 +436,7 @@ Return a vector rather than a single unexplained "plan score":
 |---|---|
 | Chess quality | What losses or benefits occur in the tested continuations? |
 | Goal progress | Does the policy actually reach useful subgoals? |
+| Goal value | Does reaching the goal measurably help, judged by a check independent of the template? Low persistence cost alone does not show value. |
 | Resistance | Which tested responses disrupt it, and how? |
 | Cost of persistence | What is lost by insisting on this goal rather than adapting freely? |
 | Contingency quality | Are alternative routes or revisions still supported? |
@@ -445,6 +467,8 @@ chosen_move = preferred acceptable move according to:
 
 This is a constrained preference system, not permission to overwhelm a chess evaluation with an arbitrarily large "follows the plan" bonus.
 
+Record why each move was chosen (`selectionBasis`) and what role the plan played (`planRole`, Section 11.1). Explanations follow those records: only a plan that introduced the move, decided it, or broke a tie may be described as its reason. A plan that merely fits the move is described as fitting it.
+
 Plans may introduce candidate moves that are absent from the engine's initial shortlist. Evaluate those moves explicitly rather than rejecting them solely because they were not initially returned.
 
 ### 9.2 Overrides and fallback
@@ -462,6 +486,12 @@ Use an undiluted analysis configuration to evaluate the human and check explanat
 A coherent-plan preference among nearly optimal moves may still produce an opponent that is too strong for beginners. Difficulty calibration is therefore a separate empirical task. Do not claim a target Elo without measurement.
 
 For the first version, prefer a small number of clearly described difficulty profiles over elaborate human-error simulation. If a profile permits a suboptimal computer move, the coach must not falsely call it best or assume the human's previous move was sound because the computer failed to punish it.
+
+Beginner profiles must make real mistakes. Prefer weakening mechanisms that keep the opponent's statements true, such as considering fewer plans or checking threats less deeply, so a missed threat can be explained honestly ("I did not see your threat"). A move chosen to weaken play carries no plan claim and is disclosed in the post-game review.
+
+### 9.4 Plans must hold against strong replies
+
+The opponent does not pursue plans that work only against weak replies, and it does not choose moves because a learner might err. No human-response model and no recorded traps are used on the device. Opportunities created by a learner's error are reported as new opportunities (Section 10.5). A human-response model may still be used offline to simulate learners in tests. [S16]
 
 ---
 
@@ -483,11 +513,11 @@ Scores must carry their perspective. The `python-chess` engine interface provide
 
 Do not subtract mate scores as centipawns. Preserve terminal outcomes, mate information, bounds, search metadata, and uncertainty separately. "No issue found within this budget" is not the same as "objectively best."
 
-Thresholds for labels such as inaccurate or losing require calibration. Stockfish's optional WDL output models outcomes under specified engine self-play conditions; it is not a beginner's personal probability of winning. [S1]
+Thresholds for labels such as inaccurate or losing require calibration. Engine WDL output, such as Stockfish's, models outcomes under specified engine self-play conditions; it is not a beginner's personal probability of winning. [S1]
 
 ### 10.2 Axis B: effect on the computer's recorded plan
 
-Compare the human's move with the plan revision that existed before the response. Identify changed dependencies and consequences, such as:
+Compare the human's move with the plan revision that existed before the response, judged at goal level and against reference moves from the same parent position (Section 10.4). A before/after comparison alone confuses the passage of a turn with the move's effect. A new route to the same goal is a revision, not prevention. "Prevents" requires continuation evidence that the plan policy finds no renewal within the tested horizon; otherwise use "Delays" or "Forces adaptation". A plan that was already failing before the move yields "No supported material effect". Identify changed dependencies and consequences, such as:
 
 | Impact | Meaning |
 |---|---|
@@ -521,7 +551,7 @@ Evaluate three related questions:
 
 **Adaptation:** What happens if the computer is free to change plans or exploit a new opportunity?
 
-**Alternatives:** How do a few reasonable human alternatives from the same parent position compare?
+**Alternatives:** How do a few reasonable human alternatives from the same parent position compare? Include one engine-best move that does not address the plan; it is the baseline for plan-impact labels (Section 10.2).
 
 This supports a precise explanation such as: "Your move prevents my original idea, but allows a stronger capture. Another defense avoids both problems."
 
@@ -547,7 +577,7 @@ These are conceptual contracts. The implementation planner should choose actual 
 | `PlanTemplate` | Applicability, binding rules, goal, dependencies, action generation, progress features, challenge generation, and lifecycle rules. |
 | `PlanInstance` | Stable episode ID, template version, owner, bound entities, current subgoals, status, evidence, and revision history. |
 | `PlanAssessment` | Tested actions and responses, progress outcomes, persistence cost, refutations, adaptations, coverage, and limitations. |
-| `DecisionRecord` | Pre-move state, selected move, selected plan revision or fallback reason, candidate comparisons, deciding criteria, and evidence available at decision time. |
+| `DecisionRecord` | Pre-move state, selected move, selected plan revision or fallback reason, candidate comparisons, deciding criteria, `planRole` (introduced-candidate, decisive, tiebreak, concurrent, none), `selectionBasis` (plan, immediate obligation, difficulty concession, teaching preference, fallback), engine profile (threads, node or depth limit, hash policy), and the evidence available at decision time. Store evidence values, not only references, because a re-run can differ. |
 | `MoveAssessment` | Human move, independent quality assessment, plan-impact findings, tactical findings, compared alternatives, and uncertainty. |
 | `ExplanationClaim` | Claim type, participants, supporting evidence IDs, certainty class, scope, and disclosure restrictions. |
 | `TeachingEvent` | Selected claims, parent game revision, rendered text, visualization instructions, disclosure timing, and concept tags. |
@@ -559,7 +589,7 @@ Represent unavailable information explicitly. Missing evidence must not silently
 
 Use machine-readable move identities, with notation generated for display. Store entity references in a way that survives movement, capture, and promotion. A square alone is not a stable piece identity across an episode.
 
-Preserve history, not only the visible board. Stockfish's documentation recommends supplying move history for repetition handling. [S1] The implementation should also distinguish analysis caches from narrative state: a reusable position evaluation does not make two plan histories interchangeable.
+Preserve history, not only the visible board. UCI engines need the move history for repetition handling; Stockfish's documentation, for example, recommends supplying it. [S1] The implementation should also distinguish analysis caches from narrative state: a reusable position evaluation does not make two plan histories interchangeable.
 
 Cache keys and result validation must account for relevant rule state, history, analysis configuration, and revision. A result for a different branch or an insufficiently specified repetition context must not be treated as interchangeable.
 
@@ -575,10 +605,11 @@ extractFacts(gameState)
 proposePlans(gameState, facts, activePlan?)
     -> PlanInstance candidates
 
-testPlan(gameState, plan, responsePolicy, budget)
+testPlan(gameState, plan, responsePolicy, difficulty, budget)
     -> PlanAssessment
 
-selectComputerMove(gameState, analyses, planAssessments, difficulty)
+selectComputerMove(gameState, analyses, planAssessments, difficulty,
+                   learnerContext, decisionHistory)
     -> DecisionRecord
 
 assessHumanMove(parentState, move, priorDecision, priorPlan, budget)
@@ -590,6 +621,8 @@ buildClaims(decisionOrAssessment, evidence)
 selectTeachingEvent(claims, learnerContext, disclosureSetting)
     -> TeachingEvent or no event
 ```
+
+`learnerContext` combines `ExperiencePreferences` with recorded learning observations; `decisionHistory` is the ordered list of prior `DecisionRecord` values.
 
 All long-running product operations should support cancellation and carry a state revision. The game controller must reject results that no longer belong to the current state.
 
@@ -679,6 +712,11 @@ For this fixture, construct a prior decision record in which White chose to crea
 
 **Response B:** `3...g6` blocks the queen's immediate route from h5 to f7. This supports a specific finding that the immediate threat is interrupted. It does not, by itself, establish the move's overall quality or the success of any longer-term plan.
 
+Checks made for the concept review (python-chess 1.11.2 for rules; Stockfish 19, single thread, node-limited, for engine preferences) give plan-impact fixtures:
+
+- After `3...g6 4.Qf3`, the mating threat is renewed: after `4...a6`, `5.Qxf7#` is mate. `4.Qf3` was also the engine's top reply. Response B therefore delays the goal or forces adaptation; it does not prevent it.
+- Of Black's 28 legal replies after `3.Qh5`, 8 leave no mate in one. Two of those, `3...Qg5` and `3...Qh4`, lose to `4.Qxf7+ Kd8 5.Qxf8#`. Stopping the immediate threat must not by itself yield "Prevents" or a favorable assessment.
+
 A proposed claim object for Response A is:
 
 ```json
@@ -705,7 +743,7 @@ This fixture tests legal evidence and response interpretation. It does **not** d
 
 ### 14.1 Local engine integration
 
-Official Stockfish downloads include Android ARM builds. Android's NDK supports native C/C++ components. These are useful starting points, not proof that a particular engine package or integration method will work unchanged in the intended application. [S3, S8]
+Target arm64 only; phones from the last two years are 64-bit. Android's NDK supports native C/C++ components, and a permissively licensed engine can be linked into the app through it, which is the documented integration path. Running an engine as a separate executable is restricted: apps targeting API 29 or higher cannot execute files in the app's home directory, and the community workaround of packaging the executable as a native library is not officially documented. On Google Play, native code in apps targeting API 35 or higher must support 16 KB memory pages. These are useful constraints and starting points, not proof that a particular engine package or integration method will work unchanged in the intended application. [S8, S9, S10]
 
 The implementation planner should choose and validate a supported integration approach, including the native boundary, command transport, lifecycle, cancellation, packaging, and device architectures. Keep the conceptual engine adapter independent of whether analysis is in-process, in another process, or temporarily provided by a development backend.
 
@@ -715,7 +753,13 @@ A backend can simplify experimentation, but introduces connectivity, operating-c
 
 Candidate generation, plan rollouts, and counterfactual analysis can multiply the number of engine searches. Start with a small shortlist and explicitly budget the total work, not only each individual search.
 
-An experimental configuration might consider two to four plan candidates, a few opponent challenges, and a strategic horizon of a few computer turns. These are starting hypotheses for benchmarking, not validated performance targets or sufficient analysis for every position.
+Count searches per computer move. Assume one search per opponent turn and one plan-policy search per computer turn. A deterministic plan policy facing R sampled replies over H computer turns then needs Σ_{k<H} Rᵏ + Σ_{1≤k≤H} Rᵏ searches per plan: 4 for H = 1 and 52 for H = 3 with R = 3. Human-move assessment adds its own searches (Section 10.4). Start with two plan candidates, three replies, and a horizon of one reply (Section 8.2). These are starting hypotheses for benchmarking, not validated performance targets or sufficient analysis for every position.
+
+Latency targets: under 5 seconds per computer move most of the time and under 10 seconds in extreme cases, on phones released within the last two years. These are targets to validate on devices, not measurements. Bounded analysis of the position before the player's move may run while the player thinks.
+
+For anything recorded, compared, or ablated, use a deterministic analysis profile: one thread per engine instance, node- or depth-limited search, and an explicit hash policy. Multi-threaded, time-limited search is not reproducible. Run several single-thread instances in parallel for throughput.
+
+When the budget is short, drop work in this order: extra probe replies or a raised horizon, then reference-move comparisons, then alternative human moves. Keep legality, immediate tactics, and the played-move assessment. Comparisons that remain must share one analysis configuration.
 
 Prioritize legal gameplay and immediate tactical checking. Use remaining budget for plan validation and alternate explanations. When resources are insufficient, reduce explanation coverage rather than increasing confidence in unfinished analysis.
 
@@ -735,9 +779,19 @@ Support rule outcomes and special moves through the authoritative game core. The
 
 ### 14.4 Licensing and data decisions
 
-Stockfish is GPLv3, and the Lichess puzzle-generation repository is AGPLv3. Review the exact dependencies, copied or adapted code, distribution model, and applicable obligations before shipping. [S2, S7]
+Distribute under the most liberal license possible. The application's own code is public domain; the repository uses the Unlicense. Ship only permissively licensed third-party components (for example MIT, BSD, Apache-2.0, CC0) and keep their notices, so the distributed app carries third-party notices even though its own code is public domain. Keep copyleft components (GPL, AGPL) out of the shipped app.
 
-Make licensing a release gate and an early architecture decision, not a footnote after native integration. Do not assume that a process boundary or a wrapper automatically resolves license compatibility. Obtain qualified review where needed; this document does not determine legal compliance.
+Engine candidates, checked October 16, 2026:
+
+| Engine | Code license | Evaluation network | UCI support | Notes |
+|---|---|---|---|---|
+| Caissa | MIT | Trained on its own self-play games; network files are hosted in a separate repository that declares no license | `MultiPV`, `searchmoves`, `go nodes` | C++, ARM NEON build. Confirm the network license with the author before shipping. [S11, S12] |
+| Arasan | MIT, explicitly including the network directory | Recent networks trained on Leela (lc0) and self-play games; Leela data is under the ODbL | `MultiPV`, `searchmoves`; no `go nodes` (use depth limits) | C++, ARM NEON build; CMake cross-compilation for Android is documented. Review the ODbL question before shipping. [S13] |
+| Stockfish | GPLv3 | Trained on Leela data (ODbL) | All required features | Official Android ARM builds exist. Excluded by the licensing goal. [S1, S2, S3] |
+
+Rules core: python-chess is GPL-3.0+ [S15], so keep it in the desktop research harness and out of shipped code. chesslib (Apache-2.0) [S14] or an in-house public-domain rules core can serve the Android game core. The Lichess puzzle-generation repository is AGPLv3; use it as a reference only, not as a code source. [S7]
+
+Make licensing a release gate and an early architecture decision, not a footnote after native integration. If a copyleft engine is reconsidered, do not assume that a process boundary or a wrapper automatically resolves license compatibility. Obtain qualified review where needed; this document does not determine legal compliance.
 
 Before public release, complete a naming review for Chess & Cocoa in the intended markets and verify the chosen domain, handles, and application identifiers separately. Do not claim that this concept document clears the name.
 
@@ -793,7 +847,7 @@ Evaluate false explanations separately from missing explanations. Early releases
 
 | Test | Required outcome |
 |---|---|
-| Plan influence | In suitable controlled positions, changing or removing the selected plan changes candidate preference or the recorded deciding criteria. Attaching labels after selection fails. |
+| Plan influence | For each decision, rerun candidate generation and ranking with the plan removed, reusing cached analyses, and record `planRole`. Across positions with at least two acceptable moves, including natural positions, the plan must change the chosen move at a measured rate, with the acceptance threshold set during planning, and changed moves must outscore other acceptable moves on the plan's progress features. A change only in recorded criteria does not count. Attaching labels after selection fails. |
 | Temporal integrity | No evidence learned after the human's move appears in the frozen earlier decision record. |
 | Persistence | A valid goal survives multiple relevant decisions rather than receiving a new unrelated label each turn. |
 | Adaptation | Breaking a dependency leads to a supported revision, suspension, or abandonment. |
@@ -801,12 +855,15 @@ Evaluate false explanations separately from missing explanations. Early releases
 | Axis independence | Plan disruption does not automatically produce a favorable human-move label. |
 | Honest novelty | A new tactical opportunity is not described as a previously intended trap without prior evidence. |
 | Abstention | Missing support yields a limited explanation or no explanation, not invented facts. |
+| Impact baseline | A plan already failing before the player's move yields "No supported material effect". Stopping only the immediate threat (Section 13.2) does not yield "Prevents". |
+| Honest weakness | At the lowest difficulty, every narrated claim is still supported; moves chosen to weaken play carry no plan claim. |
+| Policy identity | Live and simulated plan-policy moves are identical for the same position, difficulty profile, and engine profile. |
 
 Ablation does not require a different move in every position. It should establish that the planner is causally part of the selection mechanism, especially in controlled positions with multiple acceptable choices.
 
 ### 16.4 Explanation and user-interface correctness
 
-Every displayed material claim needs traceable evidence. Highlights must identify the right pieces, continuations must start from the right revision, and disclosure settings must prevent unwanted future-move spoilers.
+Every displayed material claim needs traceable evidence. Re-derive each claim from its cited evidence rather than checking only that a link exists, and check words such as "only", "forced", "cannot", and "wins" against the claim's certainty class. Highlights must identify the right pieces, continuations must start from the right revision, and disclosure settings must prevent unwanted future-move spoilers.
 
 Takebacks and rapid input should not reveal stale explanations. Crash recovery should preserve or explicitly invalidate incomplete decisions rather than manufacture intent.
 
@@ -838,7 +895,21 @@ Track move legality, evidence replay success, claim error rate, explanation cove
 
 Do not maximize plan lifetime or completion rate in isolation: an appropriate abandonment is good behavior. Do not maximize engagement at the expense of accurate feedback or learner autonomy.
 
+Also track difficulty: a reference beginner-strength opponent should score within a target band against each profile, with the analyst at full strength.
+
 The implementation plan should assign measurable release thresholds and identify which require expert review or user testing. Avoid unsupported numerical performance or learning claims.
+
+### 16.7 Decision experiments before substantial implementation
+
+Run the five experiments in Section D of `chess_and_cocoa_concept_review.md`. Their decision rules gate deeper rollouts, additional plan families, and claims of learning value.
+
+| Experiment | Question |
+|---|---|
+| Plan influence and specificity | Does the plan change moves, and are the changed moves specific to the plan? |
+| Continuation under resistance | Do plans checked one reply deep hold up, or is a longer horizon needed? |
+| Coverage in ordinary games | Do plan-related teaching events occur often enough at the target level? |
+| End-to-end phone cost | Do the latency targets of Section 14.2 hold on current phones? |
+| Learner pilot | Does plan-aware feedback beat equally good after-the-fact coaching on new positions? |
 
 ---
 
@@ -849,18 +920,20 @@ The implementation plan should assign measurable release thresholds and identify
 | Generic planning may be too ambitious | Start with explicit templates and define supported positions; retain fallback. |
 | First-move analysis can validate the wrong rationale | Build policy-controlled plan testing and false-plan regression cases early. |
 | Goal metrics can reward meaningless progress | Require named benefits, opponent challenges, and independent quality checks. |
+| The template that proposes a plan also scores it | Require a goal-value check independent of the template, a specificity check against other acceptable moves, and blind expert review of sampled episodes (Sections 7.2, 8.4). |
+| Plan families may rarely occur in beginner games | Measure coverage in ordinary games before deepening the planner; change families if events are rare (Section 16.7). |
 | Strong plan-aware play may overwhelm beginners | Treat difficulty as a separate calibration problem; preserve analyst strength. |
-| Too many searches may exceed mobile budgets | Benchmark an end-to-end episode and counterfactual analysis, not only one engine call. |
+| Too many searches may exceed mobile budgets | Benchmark an end-to-end episode and counterfactual analysis, not only one engine call. Start with a one-reply horizon; keep deeper horizons off the device if they miss the latency targets (Section 14.2). |
 | Natural-language output may invent claims | Use templates first; constrain and audit any later language model. |
 | Narrow templates may produce sparse commentary | Measure coverage and improve targeted repertoire without weakening evidence requirements. |
 | Plan continuity may become stubbornness | Define tactical overrides, abandonment, and explicit uncertainty handling. |
-| Revealing intentions may remove challenge | Implement configurable disclosure and measure its effects. |
-| Dependency licensing may constrain distribution | Resolve before committing to packaging and release strategy. |
+| Revealing intentions may remove challenge | Default to revealing intentions only after the player's choice (Section 4.2); measure the effect of disclosure timing. |
+| Dependency licensing may constrain distribution | Ship only permissive components. Confirm the Caissa network license, or review Arasan's ODbL question, before committing to packaging and release strategy (Section 14.4). |
 | Cozy presentation may become decorative clutter or obscure feedback | Prioritize board readability, restrained copy, accessibility, and quiet-mode acceptance tests. |
 | Warmth may become false reassurance or unannounced easier play | Preserve independent analysis, explicit difficulty controls, and evidence-equivalent wording. |
 | Selected brand may still require clearance | Resolve naming, domain, handle, and identifier checks before public release; selection is not verification. |
 
-The product name and cozy positioning are selected and should not be reopened by the implementation planner without a concrete conflict. Exact visual assets and palette values remain design decisions. Remaining product decisions include the exact learner audience, acceptable opening assumptions, difficulty profiles, plan families, offline requirement, minimum device class, and distribution model. The next planner should propose reasoned defaults and mark which decisions need owner approval rather than silently treating them as settled.
+The product name and cozy positioning are selected and should not be reopened by the implementation planner without a concrete conflict. Exact visual assets and palette values remain design decisions. Section 2.4 records the owner's decisions on learner band, disclosure, trap-style plans, distribution license, devices, and latency. Remaining product decisions include acceptable opening assumptions, difficulty profiles, the final plan families, the offline requirement, the minimum Android version, and the business model. The next planner should propose reasoned defaults and mark which decisions need owner approval rather than silently treating them as settled.
 
 ---
 
@@ -894,7 +967,7 @@ Do not assume an existing library already supplies this entire semantic layer. T
 
 Do not invent evaluated chess positions, engine scores, throughput measurements, or learning gains. Generate and check fixtures explicitly. Verify current third-party details rather than depending on version claims from memory.
 
-Do not start by training a model or rewriting Stockfish. Propose those only if a measured limitation justifies them. Keep the MVP small enough to test while retaining at least one genuine multi-turn plan episode.
+Do not start by training a model or rewriting an engine. Propose those only if a measured limitation justifies them. Keep the MVP small enough to test while retaining at least one genuine multi-turn plan episode.
 
 Do not interpret "cozy" as an instruction to weaken analysis, guarantee wins, gamify drinks, or build a conversational persona. Treat pacing, helpfulness, readability, and learner control as concrete behavior to implement and test. Keep exact art direction flexible within that positioning.
 
@@ -905,15 +978,18 @@ You are the software architect for "Chess & Cocoa - a cozy chess teaching
 app," the Android application described in this document. Produce a
 concrete, risk-first implementation plan.
 
-Treat R1–R15 as mandatory conceptual requirements. Distinguish fixed
-requirements, recommended defaults, and open decisions. Choose practical
-defaults where possible and explain material tradeoffs.
+Treat R1–R15 as mandatory conceptual requirements and the owner decisions
+in Section 2.4 as fixed. Distinguish fixed requirements, recommended
+defaults, and open decisions. Choose practical defaults where possible and
+explain material tradeoffs.
 
 The product must contain a planner that influences the opponent's actual
 moves, records its intention before the human responds, tests conditional
-plans rather than only their first moves, and evaluates human move quality
-independently of plan disruption. Do not replace this with a generic engine
-plus post-hoc commentary.
+plans rather than only their first moves (starting with a one-reply probe,
+Section 8.2), and evaluates human move quality independently of plan
+disruption. Do not replace this with a generic engine plus post-hoc
+commentary. Run the decision experiments of Section 16.7 before deepening
+the planner.
 
 Preserve the selected name "Chess & Cocoa" and descriptor "a cozy chess
 teaching app." Make the cozy identity behavioral: untimed default play,
@@ -943,7 +1019,7 @@ or optional language-model features.
 
 ## 19. Verified technical references
 
-These technical references are retained from version 0.1, where they were recorded as checked on October 16, 2026. This branding revision does not refresh the third-party research. The sources support the existing-tool facts cited in this document, not the proposed architecture's effectiveness. Recheck current versions, options, and licenses during implementation planning.
+References S1–S8 are retained from version 0.1. S9–S16 were added in version 0.3. All were recorded as checked on October 16, 2026. The sources support the existing-tool facts cited in this document, not the proposed architecture's effectiveness. Recheck current versions, options, and licenses during implementation planning.
 
 **[S1] Stockfish: UCI Protocol and Stockfish Commands.** Engine communication, candidate lines, restricted root search, history handling, search configuration, and WDL interpretation.  
 `https://official-stockfish.github.io/docs/stockfish-wiki/UCI-Protocol-and-Stockfish-Commands.html`
@@ -968,6 +1044,30 @@ These technical references are retained from version 0.1, where they were record
 
 **[S8] Android Developers: Get started with the NDK.** Native C/C++ integration foundation.  
 `https://developer.android.com/ndk/guides`
+
+**[S9] Android Developers: Behavior changes, apps targeting API 29+.** Removal of execute permission for files in the app home directory.  
+`https://developer.android.com/about/versions/10/behavior-changes-10`
+
+**[S10] Android Developers: Support 16 KB page sizes.** Google Play requirement for native code in apps targeting API 35+.  
+`https://developer.android.com/guide/practices/page-sizes`
+
+**[S11] Caissa chess engine.** MIT license, UCI options, self-play network training, ARM builds.  
+`https://github.com/Witek902/Caissa`
+
+**[S12] Caissa network files.** Separate repository; no license declared when checked.  
+`https://github.com/Witek902/Caissa-Nets`
+
+**[S13] Arasan chess engine.** MIT license covering source and network directories; training notes in `doc/CHANGES`.  
+`https://github.com/jdart1/arasan-chess`
+
+**[S14] chesslib.** Apache-2.0 Java library for legal move generation and FEN/PGN parsing.  
+`https://github.com/bhlangonijr/chesslib`
+
+**[S15] python-chess on PyPI.** GPL-3.0-or-later license metadata.  
+`https://pypi.org/project/chess/`
+
+**[S16] Maia-2.** MIT-licensed human-move prediction model; candidate offline test opponent.  
+`https://github.com/CSSLab/maia2`
 
 ---
 
