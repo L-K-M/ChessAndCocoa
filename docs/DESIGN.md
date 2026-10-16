@@ -43,7 +43,7 @@ A computer move ([`MoveSelector`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa
 
 The plan policy ([`PlanPolicy`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/plan/PlanPolicy.kt)) is one deterministic function: the template's legal actions, searched with root-restricted analysis at a fixed node budget, kept only within the quality window of the unrestricted best. Live play and the probe call it with identical inputs, and searches are single-threaded, node-limited and start from a cleared hash, so the same position gives the same move (policy identity).
 
-The probe ([`PlanProbe`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/plan/PlanProbe.kt)) tests the three strongest replies plus one template challenge, then applies the policy once after each. A plan is refuted when a strong reply leaves it without an acceptable continuation.
+The probe ([`PlanProbe`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/plan/PlanProbe.kt)) tests the three strongest replies plus one template challenge, then applies the policy once after each. A reply within 50 centipawns of the best reply is strong at every difficulty, so a gentler profile never checks more replies. A plan is refuted when a strong reply leaves it without an acceptable continuation or ends the game.
 
 ### Plan families
 
@@ -74,9 +74,9 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). Full reports: [`docs/experiments/`](experiments/2026-10-16-results.md). In short:
 
-- Policy identity held in all 321 re-run probe branches (E2).
-- Plans introduce or decide 10 to 19% of eligible moves, below the review's 30% threshold (E1); when they act, the chosen moves are mostly specific to the plan.
-- Median plan events shown per game: 1.0 (Gentle), 2.0 (Steady), 1.5 (Keen); the E3 threshold is 2.
+- Policy identity held in all 286 re-run probe branches (E2).
+- Plans introduce or decide 12 to 19% of eligible moves, below the review's 30% threshold (E1); when they act, the chosen moves are mostly specific to the plan.
+- Median plan events shown per game: 1.0 (Gentle), 2.0 (Steady), 1.0 (Keen); the E3 threshold is 2.
 - Phone latency is unmeasured: the numbers are desktop numbers.
 
 ## 6. Requirement traceability
