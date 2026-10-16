@@ -61,7 +61,77 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    // ==== Stockfish native engine (in-process, libcocoafish) ==============
+    // The whole JNI integration is kept inside this commented block so other
+    // build-file work does not interleave. See app/src/main/cpp/.
+    ndkVersion = libs.versions.ndk.get()
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = libs.versions.cmake.get()
+        }
+    }
+
+    defaultConfig {
+        externalNativeBuild {
+            cmake {
+                // Directory written by scripts/fetch-nnue.sh; the verified
+                // network is embedded into the .so via upstream's INCBIN.
+                arguments += "-DNNUE_DIR=${rootDir.absolutePath}/build/nnue"
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            ndk {
+                // arm64-v8a for devices; x86_64 exists only for the emulator.
+                abiFilters += setOf("arm64-v8a", "x86_64")
+            }
+        }
+        release {
+            ndk {
+                abiFilters += setOf("arm64-v8a")
+            }
+        }
+    }
+    // ==== end Stockfish native engine =====================================
 }
+
+// ==== Stockfish native engine: NNUE fetch ================================
+// The network is ~100 MB and gitignored; fetch-nnue.sh downloads it once and
+// verifies that the file's sha256 prefix matches its name.
+val nnueNetName: String by lazy {
+    Regex("""EvalFileDefaultName "(nn-[0-9a-f]+\.nnue)"""")
+        .find(rootDir.resolve("third_party/stockfish/src/evaluate.h").readText())
+        ?.groupValues?.get(1)
+        ?: error("EvalFileDefaultName not found in vendored Stockfish evaluate.h")
+}
+
+val fetchNnue = tasks.register<Exec>("fetchNnue") {
+    group = "build"
+    description = "Fetches and verifies the Stockfish NNUE network into build/nnue/."
+    workingDir = rootDir
+    commandLine("bash", "scripts/fetch-nnue.sh")
+    inputs.file(rootDir.resolve("third_party/stockfish/src/evaluate.h"))
+    inputs.property("nnueCacheDir", providers.environmentVariable("NNUE_CACHE_DIR").orElse(""))
+    outputs.file(rootDir.resolve("build/nnue").resolve(nnueNetName))
+}
+
+// AGP creates one native task per variant and ABI; every one of them needs
+// the verified network on disk before CMake configures.
+tasks.configureEach {
+    if (
+        name.startsWith("externalNativeBuild") ||
+        name.startsWith("configureCMake") ||
+        name.startsWith("buildCMake")
+    ) {
+        dependsOn(fetchNnue)
+    }
+}
+// ==== end Stockfish native engine ========================================
 
 kotlin {
     compilerOptions {
