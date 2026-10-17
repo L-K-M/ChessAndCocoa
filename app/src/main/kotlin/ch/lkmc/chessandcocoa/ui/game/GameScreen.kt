@@ -101,7 +101,7 @@ private class Evidence(val event: TeachingEvent, val frames: List<EvidenceFrame>
  *   [ Hint ]  [ Take back ]
  * ```
  *
- * Landscape puts the board at full height on the left and everything else beside it.
+ * Landscape and wide, near-square windows put the board on the left and coaching beside it.
  */
 @Composable
 fun GameScreen(session: GameSession, navigation: GameNavigation) {
@@ -251,8 +251,10 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         BoxWithConstraints {
-            if (maxWidth > maxHeight) {
-                LandscapeGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions)
+            // A wide window needs enough room below a width-sized board to make stacking useful.
+            val nearSquare = maxWidth >= TWO_PANE_MIN_WIDTH && maxHeight - maxWidth < SHORT_SCREEN_ROOM
+            if (maxWidth > maxHeight || nearSquare) {
+                SideBySideGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions)
             } else {
                 PortraitGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions, state)
             }
@@ -357,7 +359,7 @@ private fun BoardColumn(
 }
 
 @Composable
-private fun LandscapeGame(
+private fun SideBySideGame(
     title: String,
     subtitle: String,
     onBack: () -> Unit,
@@ -523,6 +525,7 @@ private val MENU_WIDTH = 200.dp
 private val TOOLBAR_HEIGHT = 60.dp
 private const val DISABLED_ALPHA = 0.38f
 
-/** Below this much height beside the board, the move list moves into the panel. */
+/** Room beyond a width-sized board before stacking is comfortable. */
 private val SHORT_SCREEN_ROOM = 330.dp
+private val TWO_PANE_MIN_WIDTH = 600.dp
 private const val WIDE_BOARD_SHARE = 0.56f

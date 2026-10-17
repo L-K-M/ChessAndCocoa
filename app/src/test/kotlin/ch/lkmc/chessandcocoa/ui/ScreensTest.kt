@@ -190,6 +190,61 @@ class ScreensTest {
     }
 
     @Test
+    @Config(qualifiers = "w734dp-h800dp-xxhdpi")
+    fun intentOnANearlySquareScreen() {
+        gameWithIntent()
+        assertPanelBesideBoard()
+        compose.onRoot().captureRoboImage(shot("opponent-intent-near-square"))
+    }
+
+    @Test
+    @Config(qualifiers = "w734dp-h734dp-xxhdpi")
+    fun intentOnASquareScreenWithLargeText() {
+        gameWithIntent(Appearance.EVENING, fontScale = LARGEST_FONT)
+        assertPanelBesideBoard()
+        compose.onRoot().captureRoboImage(shot("opponent-intent-square-large-text"))
+        compose.onNodeWithText("Your reply is marked as assisted.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w734dp-h1280dp-xxhdpi")
+    fun aTallTabletKeepsCoachingBelowTheBoard() {
+        gameWithIntent()
+        val corner = compose.onNodeWithContentDescription("a8, empty").getBoundsInRoot()
+        val panel = compose.onNode(hasScrollAction(), useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(corner.bottom <= panel.top, "a tall screen should leave coaching below the board")
+    }
+
+    @Test
+    @Config(qualifiers = "w734dp-h800dp-xxhdpi")
+    fun aNearlySquareScreenLeavesRoomForFeedbackAndEvidence() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = SCHOLAR_FEN)
+        show(Appearance.EVENING) { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.onNodeWithContentDescription("g8, black knight").performClick()
+        compose.onNodeWithContentDescription("f6, empty").performClick()
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.GAME_OVER }
+        compose.waitForIdle()
+
+        assertPanelBesideBoard("a8, black rook")
+        compose.onAllNodesWithText("Show me why").onFirst().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("feedback-near-square"))
+
+        compose.onAllNodesWithText("Show me why").onFirst().performClick()
+        compose.waitForIdle()
+        assertPanelBesideBoard("a8, black rook")
+        compose.onNodeWithText("Exploring here does not change your game.").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("evidence-near-square"))
+        compose.onNodeWithText("Next step").performClick()
+        compose.onNodeWithContentDescription("f7, white queen").assertIsDisplayed()
+        compose.onNodeWithText("Back to game").performClick()
+        compose.onNodeWithText("Take back").performClick()
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        assertEquals(0, session.state.value.record!!.ply)
+    }
+
+    @Test
     fun about() {
         show { AboutScreen(onOpen = {}, onBack = {}) }
         compose.onRoot().captureRoboImage(shot("about"))
@@ -415,6 +470,15 @@ class ScreensTest {
         val corner = compose.onNodeWithContentDescription("h8, black rook").getBoundsInRoot()
         val toolbar = compose.onNodeWithText("Hint").getBoundsInRoot()
         assertTrue(corner.bottom <= toolbar.top || corner.right <= toolbar.left, "the board overlaps the toolbar")
+    }
+
+    private fun assertPanelBesideBoard(cornerDescription: String = "a8, empty") {
+        val root = compose.onRoot().getBoundsInRoot()
+        val corner = compose.onNodeWithContentDescription(cornerDescription).getBoundsInRoot()
+        val panel = compose.onNode(hasScrollAction(), useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(corner.right <= panel.left, "coaching should sit beside the board on a wide, square-ish screen")
+        assertTrue(panel.bottom - panel.top >= (root.bottom - root.top) / 2, "coaching should have at least half the screen's height")
+        assertTrue(corner.bottom <= root.bottom, "the board should stay inside the screen")
     }
 
     /** The bottom rank (Black's back rank here) sits fully above the toolbar and inside the screen. */
