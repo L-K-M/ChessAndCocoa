@@ -5,11 +5,14 @@ import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
@@ -20,6 +23,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -36,6 +40,7 @@ import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.render.Renderer
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
+import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
 import ch.lkmc.chessandcocoa.data.GameStore
 import ch.lkmc.chessandcocoa.data.PreferencesStore
@@ -58,6 +63,7 @@ import ch.lkmc.chessandcocoa.ui.theme.Appearance
 import ch.lkmc.chessandcocoa.ui.theme.CocoaTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +80,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
 
 /**
  * Renders each screen on the JVM and saves it to docs/screenshots/ for
@@ -128,6 +135,58 @@ class ScreensTest {
     fun settingsInTheEvening() {
         show(Appearance.EVENING) { SettingsScreen(ExperiencePreferences(), onChange = {}, onBack = {}) }
         compose.onRoot().captureRoboImage(shot("settings-evening"))
+    }
+
+    @Test
+    fun intentCanBeEnabledFromSettingsDuringAGame() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = INTENT_FEN)
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        val settings = mutableStateOf(true)
+        show {
+            val state by session.state.collectAsStateWithLifecycle()
+            if (settings.value) SettingsScreen(state.preferences, session::updatePreferences, onBack = { settings.value = false })
+            else GameScreen(session, navigation().copy(onSettings = { settings.value = true }))
+        }
+
+        compose.onNodeWithText("With my move").performScrollTo().performClick()
+        compose.onNodeWithText("With my move").assertIsSelected()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitForIdle()
+        val intent = assertNotNull(session.state.value.opponentIntent)
+        assertTrue("open file" in intent.text && "b7" in intent.text, intent.text)
+        compose.onNodeWithText("My idea").assertIsDisplayed()
+        compose.onNodeWithText(intent.text).assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("opponent-intent"))
+
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Only in the review").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("My idea").assertDoesNotExist()
+        assertTrue(session.state.value.record!!.assistedAt(1))
+    }
+
+    @Test
+    fun intentInTheEvening() {
+        gameWithIntent(Appearance.EVENING)
+        compose.onRoot().captureRoboImage(shot("opponent-intent-evening"))
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun intentOnACompactPhoneWithLargeText() {
+        gameWithIntent(fontScale = LARGEST_FONT)
+        compose.onRoot().captureRoboImage(shot("opponent-intent-large-text"))
+        compose.onNodeWithText("Your reply is marked as assisted.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-land-xxhdpi")
+    fun intentInLandscape() {
+        gameWithIntent()
+        compose.onRoot().captureRoboImage(shot("opponent-intent-landscape"))
     }
 
     @Test
@@ -345,6 +404,19 @@ class ScreensTest {
         compose.waitForIdle()
     }
 
+    private fun gameWithIntent(appearance: Appearance = Appearance.DAYLIGHT, fontScale: Float = 1f) {
+        val session = engineSession()
+        session.updatePreferences(session.state.value.preferences.copy(disclosure = DisclosureSetting.WITH_MOVE))
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = INTENT_FEN)
+        show(appearance, fontScale) { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.waitForIdle()
+        compose.onNodeWithText("My idea").assertIsDisplayed()
+        val corner = compose.onNodeWithContentDescription("h8, black rook").getBoundsInRoot()
+        val toolbar = compose.onNodeWithText("Hint").getBoundsInRoot()
+        assertTrue(corner.bottom <= toolbar.top || corner.right <= toolbar.left, "the board overlaps the toolbar")
+    }
+
     /** The bottom rank (Black's back rank here) sits fully above the toolbar and inside the screen. */
     private fun assertBoardClearOfToolbar() {
         val root = compose.onRoot().getBoundsInRoot()
@@ -439,5 +511,6 @@ class ScreensTest {
         const val SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
         const val SAVED_FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5"
         const val PROMOTION_FEN = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1"
+        const val INTENT_FEN = "6kr/1p3ppp/8/8/8/8/PP1PPPPP/R5K1 w - - 0 1"
     }
 }

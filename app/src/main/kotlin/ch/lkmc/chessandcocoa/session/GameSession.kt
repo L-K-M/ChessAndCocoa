@@ -8,9 +8,11 @@ import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
+import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
 import ch.lkmc.chessandcocoa.coach.teach.Hint
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
+import ch.lkmc.chessandcocoa.coach.teach.OpponentIntent
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.data.GameStore
 import ch.lkmc.chessandcocoa.data.PreferencesStore
@@ -43,6 +45,7 @@ data class SessionState(
     /** The move list as numbered rows in SAN, e.g. "1. e4 e5", "2. Nf3". */
     val moves: List<MoveRow> = emptyList(),
     val hint: Hint? = null,
+    val opponentIntent: OpponentIntent? = null,
     val preferences: ExperiencePreferences = ExperiencePreferences(),
     /** The game "Continue" would open, or null when there is none. */
     val resumable: GameSummary? = null,
@@ -116,8 +119,7 @@ class GameSession(
             SideChoice.RANDOM -> if (seed and 1L == 0L) Side.WHITE else Side.BLACK
         }
         val record = coach.newGame(UUID.randomUUID().toString(), humanSide, difficulty, seed, clock(), startFen)
-        commit(record, events = emptyList(), hint = null)
-        continueGame(record)
+        continueGame(commit(record, events = emptyList(), hint = null))
     }
 
     /** Resumes the most recent unfinished game, with its recorded plans intact. */
@@ -125,8 +127,7 @@ class GameSession(
         cancelWork()
         scope.launch {
             val saved = withContext(Dispatchers.IO) { store.latestUnfinished() } ?: return@launch
-            commit(saved, events = saved.events.filter { it.ply >= saved.ply - 1 }, hint = null)
-            continueGame(saved)
+            continueGame(commit(saved, events = saved.events.filter { it.ply >= saved.ply - 1 }, hint = null))
         }
     }
 
@@ -136,13 +137,12 @@ class GameSession(
         if (current.phase != Phase.HUMAN_TURN) return
         if (current.board?.legalMoves?.get(move.from)?.contains(move) != true) return
 
-        _state.update { it.copy(phase = Phase.ASSESSING, pendingMove = move, hint = null, board = pendingBoard(record, move)) }
+        _state.update { it.copy(phase = Phase.ASSESSING, pendingMove = move, hint = null, opponentIntent = null, board = pendingBoard(record, move)) }
         work = scope.launch {
             val result = runCatching { coach.playHumanMove(record, move, current.preferences, clock()) }
                 .getOrElse { failure -> return@launch fail(failure) }
             if (!stillCurrent(record)) return@launch
-            commit(result.record, listOfNotNull(result.event), hint = null)
-            continueGame(result.record)
+            continueGame(commit(result.record, listOfNotNull(result.event), hint = null))
         }
     }
 
@@ -174,8 +174,7 @@ class GameSession(
 
         // A move still being assessed is not in the record yet: taking it back just drops it.
         val restored = if (current.phase == Phase.ASSESSING) record else coach.takeBack(record, clock())
-        commit(restored, events = if (restored === record) current.events else emptyList(), hint = null)
-        continueGame(restored)
+        continueGame(commit(restored, events = if (restored === record) current.events else emptyList(), hint = null))
     }
 
     fun resign() {
@@ -201,8 +200,14 @@ class GameSession(
     }
 
     fun updatePreferences(preferences: ExperiencePreferences) {
+        val previousDisclosure = _state.value.preferences.disclosure
         preferencesStore.save(preferences)
-        _state.update { it.copy(preferences = preferences) }
+        _state.update {
+            it.copy(preferences = preferences, opponentIntent = it.opponentIntent.takeIf { preferences.disclosure == DisclosureSetting.WITH_MOVE })
+        }
+        val current = _state.value
+        val record = current.record ?: return
+        if (previousDisclosure != preferences.disclosure && current.phase == Phase.HUMAN_TURN) commit(record, current.events, current.hint)
     }
 
     /** Clears the error. An opponent move that failed is tried again, so the game never stalls on it. */
@@ -228,12 +233,16 @@ class GameSession(
                 .getOrElse { failure -> return@launch fail(failure) }
             if (!stillCurrent(record)) return@launch
             // Keep the feedback on the player's move; the opponent's news joins it.
-            commit(result.record, _state.value.events + listOfNotNull(result.event), hint = null)
-            continueGame(result.record)
+            continueGame(commit(result.record, _state.value.events + listOfNotNull(result.event), hint = null))
         }
     }
 
-    private fun commit(record: GameRecord, events: List<TeachingEvent>, hint: Hint?) {
+    private fun commit(source: GameRecord, events: List<TeachingEvent>, hint: Hint?): GameRecord {
+        val (record, intent) = if (_state.value.preferences.disclosure == DisclosureSetting.WITH_MOVE) {
+            coach.revealOpponentIntent(source, clock())
+        } else {
+            source to null
+        }
         val phase = when {
             record.outcome != null -> Phase.GAME_OVER
             record.isHumanTurn -> Phase.HUMAN_TURN
@@ -253,9 +262,11 @@ class GameSession(
                 events = events,
                 moves = moveRows(record),
                 hint = hint,
+                opponentIntent = intent,
                 resumable = if (record.outcome == null) summary(record) else null,
             )
         }
+        return record
     }
 
     /** Waits until every save issued so far is on disk (for leaving the app, and tests). */
@@ -306,15 +317,11 @@ class GameSession(
 
     private fun fail(failure: Throwable) {
         if (failure is kotlinx.coroutines.CancellationException) return
-        val record = _state.value.record
-        _state.update { state ->
-            state.copy(
-                error = SessionError.ENGINE_UNAVAILABLE,
-                pendingMove = null,
-                phase = if (record?.isHumanTurn == true) Phase.HUMAN_TURN else state.phase,
-                board = record?.let { BoardSnapshot.of(it.game, it.humanSide, playable = it.isHumanTurn) } ?: state.board,
-            )
-        }
+        _state.update { it.copy(error = SessionError.ENGINE_UNAVAILABLE, pendingMove = null) }
+        val current = _state.value
+        val record = current.record ?: return
+        // Restore the board and its disclosure together after a failed, uncommitted move.
+        commit(record, current.events, current.hint)
     }
 
     private fun cancelWork() {

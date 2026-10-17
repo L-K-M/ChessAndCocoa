@@ -23,6 +23,9 @@ enum class DisclosureSetting {
 
     /** Never reveal intentions during play; only in the review. */
     REVIEW_ONLY,
+
+    /** Opt-in help: show the recorded aim with the opponent's move, before the reply. */
+    WITH_MOVE,
 }
 
 /**
@@ -65,6 +68,9 @@ data class TeachingEvent(
     val evidence: Continuation?,
     val claims: List<Claim>,
 )
+
+/** The latest opponent move's verified, recorded purpose, kept readable during the reply. */
+data class OpponentIntent(val decisionId: String, val moveLabel: String, val text: String)
 
 /**
  * Picks at most one primary teaching point per event (Section 4.3): serious
@@ -116,7 +122,7 @@ object TeachingPolicy {
 
     private fun visible(claim: Claim, preferences: ExperiencePreferences): Boolean = when (claim.disclosure) {
         Disclosure.NOW -> true
-        Disclosure.AFTER_CHOICE -> preferences.disclosure == DisclosureSetting.AFTER_CHOICE
+        Disclosure.AFTER_CHOICE -> preferences.disclosure != DisclosureSetting.REVIEW_ONLY
         Disclosure.REVIEW_ONLY -> false
     }
 
