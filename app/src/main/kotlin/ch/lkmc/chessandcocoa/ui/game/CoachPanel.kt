@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.chessandcocoa.R
@@ -114,16 +115,18 @@ private fun TurnDot(side: Side) {
 /** Replaces the status line while "Show me why" is on the board, so the two can never be confused. */
 @Composable
 fun EvidenceBanner(modifier: Modifier = Modifier) {
+    val title = stringResource(R.string.evidence_title)
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         shape = MaterialTheme.shapes.medium,
-        modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+        // A pane title makes screen readers announce the replay as it appears.
+        modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) { paneTitle = title },
     ) {
         Row(Modifier.padding(horizontal = Space.m, vertical = Space.s), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.ic_visibility), contentDescription = null)
             Column(Modifier.padding(start = Space.m)) {
-                Text(stringResource(R.string.evidence_title), style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(stringResource(R.string.evidence_live_untouched), style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -217,7 +220,7 @@ private fun HintNote(hint: Hint) {
     }
 }
 
-/** The shapes on the board and what they mean, drawn exactly as the board draws them. */
+/** The marks on the board and what they mean, in the board's own shapes and colours. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MarkLegend(roles: Set<SquareRole>, modifier: Modifier = Modifier) {

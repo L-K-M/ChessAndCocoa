@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.lkmc.chessandcocoa.R
@@ -162,9 +163,10 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
     val boardView: @Composable (Modifier) -> Unit = { modifier ->
         val coordinates = if (state.preferences.showCoordinates) Coordinates.SHOWN else Coordinates.HIDDEN
         val style = if (state.preferences.highContrastBoard) BoardStyle.HIGH_CONTRAST else BoardStyle.COCOA
-        if (shown != null && frame != null) {
+        if (shown != null) {
+            // Without a line to replay, the position explained is the live one; it is still not playable here.
             ChessBoard(
-                board = frame.board,
+                board = frame?.board ?: liveBoard,
                 modifier = modifier,
                 marks = if (step == 0) shown.event.marks else emptyList(),
                 arrows = shown.frames.getOrNull(step + 1)?.board?.lastMove?.let(::listOf).orEmpty(),
@@ -307,12 +309,14 @@ private fun PortraitGame(
 
 /**
  * Stacks status, board, move strip, panel and actions. The board takes the
- * width it is offered, shrinking only when tall text would otherwise leave
- * the panel no room; the panel gets whatever height is left.
+ * width it is offered and shrinks when tall text or a short window would
+ * leave the panel too little room: first down to [MIN_BOARD], below that
+ * only as far as the window forces. The panel gets whatever height is left,
+ * so nothing ever sits under the actions.
  */
 @Composable
 private fun BoardColumn(
-    maxBoard: androidx.compose.ui.unit.Dp,
+    maxBoard: Dp,
     status: @Composable () -> Unit,
     board: @Composable () -> Unit,
     history: (@Composable () -> Unit)?,
@@ -330,10 +334,11 @@ private fun BoardColumn(
         val actionsP = actionsM.map { it.measure(loose) }
         val chrome = (statusP + historyP + actionsP).sumOf { it.height }
 
-        val room = constraints.maxHeight - chrome - MIN_PANEL.roundToPx()
-        val side = minOf(maxBoard.roundToPx(), room).coerceAtLeast(MIN_BOARD.roundToPx())
+        val available = (constraints.maxHeight - chrome - BOARD_GAP.roundToPx()).coerceAtLeast(0)
+        val preferred = available - MIN_PANEL.roundToPx()
+        val side = minOf(maxBoard.roundToPx(), maxOf(preferred, minOf(MIN_BOARD.roundToPx(), available)))
         val boardP = boardM.map { it.measure(Constraints.fixed(side, side)) }
-        val panelHeight = (constraints.maxHeight - chrome - side - BOARD_GAP.roundToPx()).coerceAtLeast(0)
+        val panelHeight = available - side
         val panelP = panelM.map { it.measure(Constraints.fixed(width, panelHeight)) }
 
         layout(width, constraints.maxHeight) {

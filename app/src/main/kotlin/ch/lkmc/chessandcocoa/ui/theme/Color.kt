@@ -125,15 +125,12 @@ data class MarkColors(
     val halo: Color,
 )
 
-/** Colours Material 3 has no role for: the board, its marks and the coach's tone accents. */
+/** Colours Material 3 has no role for: the board, its marks and the turn indicator. */
 @Immutable
 data class CocoaColors(
     val board: BoardPalette,
     val highContrastBoard: BoardPalette,
     val marks: MarkColors,
-    val serious: Color,
-    val encouraging: Color,
-    val calm: Color,
     /** Frame of the board while it shows "Show me why" instead of the live game. */
     val evidenceFrame: Color,
     /** The turn indicator's disc for each side. */
@@ -184,9 +181,6 @@ internal val DaylightCocoaColors = CocoaColors(
     board = CocoaBoard,
     highContrastBoard = HighContrastBoard,
     marks = Marks,
-    serious = Daylight.terracotta,
-    encouraging = Daylight.sage,
-    calm = Daylight.cocoa,
     evidenceFrame = Daylight.sage,
 )
 
@@ -194,8 +188,5 @@ internal val EveningCocoaColors = CocoaColors(
     board = EveningBoard,
     highContrastBoard = HighContrastBoard,
     marks = Marks,
-    serious = Evening.terracotta,
-    encouraging = Evening.sage,
-    calm = Evening.latte,
     evidenceFrame = Color(0xFF6E9470),
 )

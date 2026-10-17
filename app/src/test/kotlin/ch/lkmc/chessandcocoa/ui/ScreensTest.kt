@@ -5,6 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -195,8 +198,11 @@ class ScreensTest {
         compose.waitUntil(TIMEOUT) { resumed.state.value.canContinue }
         resumed.resume()
         compose.waitUntil(TIMEOUT) { resumed.state.value.phase == Phase.HUMAN_TURN }
-        assertEquals(restored.moves, resumed.state.value.record!!.moves)
-        assertEquals(restored.hints, resumed.state.value.record!!.hints)
+        val reloaded = resumed.state.value.record!!
+        assertEquals(restored.gameId, reloaded.gameId)
+        assertEquals(restored.branchId, reloaded.branchId)
+        assertEquals(restored.revision, reloaded.revision)
+        assertEquals(restored.hints, reloaded.hints)
     }
 
     @Test
@@ -239,14 +245,14 @@ class ScreensTest {
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun aCompactPhoneKeepsTheBoardWhole() {
         scholarWithKnightSelected()
-        compose.onNodeWithText("Hint").assertExists()
+        assertBoardClearOfToolbar()
         compose.onRoot().captureRoboImage(shot("game-compact"))
     }
 
     @Test
     fun largeTextStillLeavesRoomForTheBoard() {
         scholarWithKnightSelected(fontScale = LARGE_FONT)
-        compose.onNodeWithText("Take back").assertExists()
+        assertBoardClearOfToolbar()
         compose.onRoot().captureRoboImage(shot("game-large-text"))
     }
 
@@ -254,8 +260,15 @@ class ScreensTest {
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun theLargestTextOnACompactPhoneStillPlays() {
         scholarWithKnightSelected(fontScale = LARGEST_FONT)
-        compose.onNodeWithText("Hint").assertExists()
+        assertBoardClearOfToolbar()
         compose.onRoot().captureRoboImage(shot("game-compact-largest-text"))
+    }
+
+    @Test
+    @Config(qualifiers = "w300dp-h340dp-xxhdpi")
+    fun aVeryShortWindowNeverHidesTheBoardUnderTheToolbar() {
+        scholarWithKnightSelected()
+        assertBoardClearOfToolbar()
     }
 
     @Test
@@ -283,6 +296,8 @@ class ScreensTest {
         compose.waitForIdle()
         captureScreenRoboImage(shot("promotion"))
 
+        // Switch Access and Voice Access activate through the semantic click action, not a touch.
+        compose.onNodeWithContentDescription("white queen").assert(hasClickAction())
         compose.onNodeWithContentDescription("white queen").performClick()
         compose.waitUntil(TIMEOUT) { (session.state.value.record?.ply ?: 0) >= 1 }
         val promoted = session.state.value.record!!.moves.first()
@@ -301,6 +316,15 @@ class ScreensTest {
         compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
         compose.onNodeWithContentDescription("g8, black knight").performClick()
         compose.waitForIdle()
+    }
+
+    /** The bottom rank (Black's back rank here) sits fully above the toolbar and inside the screen. */
+    private fun assertBoardClearOfToolbar() {
+        val root = compose.onRoot().getBoundsInRoot()
+        val corner = compose.onNodeWithContentDescription("a8, black rook").getBoundsInRoot()
+        val toolbar = compose.onNodeWithText("Hint").getBoundsInRoot()
+        assertTrue(corner.bottom <= toolbar.top, "the board's bottom edge ${corner.bottom} runs under the toolbar at ${toolbar.top}")
+        assertTrue(corner.right <= root.right, "the board's right edge ${corner.right} leaves the screen at ${root.right}")
     }
 
     private fun show(appearance: Appearance = Appearance.DAYLIGHT, fontScale: Float = 1f, content: @Composable () -> Unit) {
