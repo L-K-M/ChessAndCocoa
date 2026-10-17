@@ -2,12 +2,20 @@
 package ch.lkmc.chessandcocoa.session
 
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Piece
+import ch.lkmc.chessandcocoa.chess.PieceType
+import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.analysis.Searcher
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
+import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
+import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
+import ch.lkmc.chessandcocoa.coach.teach.Tone
 import ch.lkmc.chessandcocoa.data.GameStore
 import ch.lkmc.chessandcocoa.data.PreferencesStore
 import kotlinx.coroutines.CompletableDeferred
@@ -174,6 +182,88 @@ class GameSessionTest {
         assertTrue(numbers.all { it >= 30 }, "move numbers were $numbers")
     }
 
+    @Test
+    fun theMoveListIsNumberedPairs() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        session.play(Move.parseUci("e2e4"))
+        val rows = awaitPly(session, 2).moves
+        assertEquals(1, rows.size)
+        assertEquals(1, rows.single().number)
+        assertNotNull(rows.single().black)
+        assertEquals("e4", rows.single().white)
+    }
+
+    @Test
+    fun aGameStartingWithBlackOpensItsFirstRowWithoutWhite() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = BLACK_TO_MOVE_FEN)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        session.play(Move.parseUci("g8f6"))
+        val rows = withTimeout(TIMEOUT) { session.state.first { it.record?.ply == 2 } }.moves
+        assertEquals(MoveRow(3, null, "Nf6"), rows.first())
+        assertNotNull(rows[1].white)
+        assertEquals(4, rows[1].number)
+    }
+
+    @Test
+    fun aSavedGameIsOfferedToContinue() = runBlocking {
+        val first = session()
+        first.newGame(SideChoice.BLACK, Difficulty.KEEN)
+        awaitPhase(first, Phase.HUMAN_TURN)
+        first.flushSaves()
+
+        val second = session()
+        val summary = withTimeout(TIMEOUT) { second.state.first { it.resumable != null } }.resumable!!
+        assertEquals(Difficulty.KEEN, summary.difficulty)
+        assertEquals(Side.BLACK, summary.humanSide)
+        assertTrue(summary.humanToMove)
+        assertEquals(1, summary.moveNumber)
+        assertEquals(32, summary.board.pieces.size)
+    }
+
+    @Test
+    fun aFinishedGameIsNotOfferedToContinue() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+        assertTrue(session.state.value.canContinue)
+
+        session.resign()
+        val state = awaitPhase(session, Phase.GAME_OVER)
+        assertEquals(null, state.resumable)
+    }
+
+    /** A point with no line to replay is still shown on its own position, never on a later one. */
+    @Test
+    fun aPointWithoutALineIsShownOnThePositionItExplains() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+        session.play(Move.parseUci("e2e4"))
+        val replied = awaitPly(session, 2).record!!
+
+        // Read after the reply, a note about 1. e4 shows the board right after 1. e4.
+        val note = TeachingEvent(
+            id = "note", ply = 1, revision = replied.revision, tone = Tone.CALM, moveLabel = "1. e4",
+            brief = "", expanded = listOf(""), marks = listOf(MarkedSquare(Square.parse("e4"), SquareRole.MOVED)),
+            evidence = null, claims = emptyList(),
+        )
+        val board = session.evidence(note).single().board
+        assertEquals(Move.parseUci("e2e4"), board.lastMove)
+        assertEquals(Side.BLACK, board.sideToMove)
+        assertEquals(Piece(Side.WHITE, PieceType.PAWN), board.pieces[Square.parse("e4")])
+        assertEquals(Position.initial().pieces(Side.BLACK), board.pieces.filterValues { it.side == Side.BLACK })
+        assertTrue(board.legalMoves.isEmpty())
+
+        // A note from a damaged save that names no real position shows nothing rather than crashing.
+        assertTrue(session.evidence(note.copy(ply = -1)).isEmpty())
+        assertTrue(session.evidence(note.copy(ply = replied.ply + 1)).isEmpty())
+    }
+
     private fun session(seed: Long = 1L): GameSession {
         val context = RuntimeEnvironment.getApplication()
         return GameSession(Coach(Searcher(analyst)), GameStore(directory), PreferencesStore(context), scope, seeds = { seed })
@@ -191,5 +281,6 @@ class GameSessionTest {
         const val CONCESSION_SEED = 7L
         const val PRACTICE_MOVES = 8
         const val MOVE_30_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 30"
+        const val BLACK_TO_MOVE_FEN = "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
     }
 }

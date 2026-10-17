@@ -5,7 +5,6 @@ import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
-import ch.lkmc.chessandcocoa.coach.evidence.Continuation
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
@@ -41,12 +40,27 @@ data class SessionState(
     val pendingMove: Move? = null,
     /** Feedback for the current turn: on the player's last move, then any news from the opponent's reply. */
     val events: List<TeachingEvent> = emptyList(),
-    /** The move list in SAN with move numbers, e.g. "1. e4 e5 2. Nf3". */
-    val notation: String = "",
+    /** The move list as numbered rows in SAN, e.g. "1. e4 e5", "2. Nf3". */
+    val moves: List<MoveRow> = emptyList(),
     val hint: Hint? = null,
     val preferences: ExperiencePreferences = ExperiencePreferences(),
-    val canContinue: Boolean = false,
+    /** The game "Continue" would open, or null when there is none. */
+    val resumable: GameSummary? = null,
     val error: SessionError? = null,
+) {
+    val canContinue: Boolean get() = resumable != null
+}
+
+/** One numbered line of the move list; a side that has not moved on that line is null. */
+data class MoveRow(val number: Int, val white: String?, val black: String?)
+
+/** What the home screen shows about the game "Continue" opens. */
+data class GameSummary(
+    val difficulty: Difficulty,
+    val humanSide: Side,
+    val moveNumber: Int,
+    val humanToMove: Boolean,
+    val board: BoardSnapshot,
 )
 
 enum class SessionError { ENGINE_UNAVAILABLE, SAVE_FAILED }
@@ -87,7 +101,8 @@ class GameSession(
     init {
         scope.launch(Dispatchers.IO) {
             val saved = store.latestUnfinished()
-            _state.update { it.copy(canContinue = saved != null) }
+            // A game started meanwhile is newer than anything on disk.
+            _state.update { it.copy(resumable = if (it.record == null) saved?.let(::summary) else it.resumable) }
         }
     }
 
@@ -171,9 +186,18 @@ class GameSession(
 
     fun review(): GameReview? = _state.value.record?.let(coach::review)
 
-    fun evidence(continuation: Continuation): List<EvidenceFrame> {
-        val orientation = _state.value.record?.humanSide ?: Side.WHITE
-        return continuation.frames(orientation, lastMove = null)
+    /**
+     * What "Show me why" shows for [event]: its continuation from its own start,
+     * or, for a point with no line, the one position it explains (after its
+     * move). Never the live board, which may have moved on since.
+     */
+    fun evidence(event: TeachingEvent): List<EvidenceFrame> {
+        val record = _state.value.record ?: return emptyList()
+        event.evidence?.let { return it.frames(record.humanSide, lastMove = null) }
+        if (event.ply !in 0..record.game.ply) return emptyList()
+
+        val explained = BoardSnapshot.of(record.game.truncate(event.ply), record.humanSide, playable = false)
+        return listOf(EvidenceFrame(explained, san = null))
     }
 
     fun updatePreferences(preferences: ExperiencePreferences) {
@@ -215,6 +239,11 @@ class GameSession(
             record.isHumanTurn -> Phase.HUMAN_TURN
             else -> Phase.OPPONENT_THINKING
         }
+        // Issue the save before publishing the state, so anyone who sees this
+        // revision and calls flushSaves also waits for it to reach the disk.
+        lastSave = scope.launch(saveDispatcher) {
+            runCatching { store.save(record) }.onFailure { _state.update { it.copy(error = SessionError.SAVE_FAILED) } }
+        }
         _state.update {
             it.copy(
                 phase = phase,
@@ -222,13 +251,10 @@ class GameSession(
                 board = BoardSnapshot.of(record.game, record.humanSide, playable = phase == Phase.HUMAN_TURN),
                 pendingMove = null,
                 events = events,
-                notation = notation(record),
+                moves = moveRows(record),
                 hint = hint,
-                canContinue = record.outcome == null,
+                resumable = if (record.outcome == null) summary(record) else null,
             )
-        }
-        lastSave = scope.launch(saveDispatcher) {
-            runCatching { store.save(record) }.onFailure { _state.update { it.copy(error = SessionError.SAVE_FAILED) } }
         }
     }
 
@@ -237,21 +263,33 @@ class GameSession(
         lastSave?.join()
     }
 
-    /** Numbered SAN, starting from the game's own first move number and side. */
-    private fun notation(record: GameRecord): String {
+    /** Numbered SAN rows, starting from the game's own first move number and side. */
+    private fun moveRows(record: GameRecord): List<MoveRow> {
         val game = record.game
         val first = game.positions.first()
+        val rows = mutableListOf<MoveRow>()
         var number = first.fullmoveNumber
-        val sans = game.sanMoves()
-        return buildString {
-            sans.forEachIndexed { index, san ->
-                val white = (first.sideToMove == Side.WHITE) == (index % 2 == 0)
-                if (white) append("$number. ") else if (index == 0) append("$number... ")
-                append(san).append(' ')
-                if (!white) number++
+        game.sanMoves().forEachIndexed { index, san ->
+            val white = (first.sideToMove == Side.WHITE) == (index % 2 == 0)
+            if (white) {
+                rows += MoveRow(number, san, null)
+                return@forEachIndexed
             }
-        }.trim()
+            // Black's move completes the row White opened, or starts one when the game began with Black to move.
+            val open = rows.lastOrNull()?.takeIf { it.number == number && it.black == null }
+            if (open != null) rows[rows.lastIndex] = open.copy(black = san) else rows += MoveRow(number, null, san)
+            number++
+        }
+        return rows
     }
+
+    private fun summary(record: GameRecord): GameSummary = GameSummary(
+        difficulty = record.difficulty,
+        humanSide = record.humanSide,
+        moveNumber = record.game.current.fullmoveNumber,
+        humanToMove = record.isHumanTurn,
+        board = BoardSnapshot.of(record.game, record.humanSide, playable = false),
+    )
 
     /**
      * True while [record] is still the live revision and the calling job was

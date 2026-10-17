@@ -17,6 +17,7 @@ scripts/build.sh [--debug]                   # APK staged into dist/
 python3 tools/doccheck/checkdocs.py .        # docs: links, anchors, fences, tables
 python3 tools/pieces/svg2vector.py --check   # piece drawables match media-sources/pieces
 python3 tools/icons/gen_icons.py             # after changing media-sources/icon.png
+python3 tools/fonts/build_fonts.py --check  # bundled fonts match media-sources/fonts (needs fontTools)
 ```
 
 - JDK 17+ (bytecode target 17). Android SDK via `local.properties` or
