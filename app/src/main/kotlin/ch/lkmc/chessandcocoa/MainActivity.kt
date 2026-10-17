@@ -8,10 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.nativeengine.EngineStatus
 import ch.lkmc.chessandcocoa.ui.about.AboutScreen
 import ch.lkmc.chessandcocoa.ui.about.LegalDocument
@@ -20,7 +22,8 @@ import ch.lkmc.chessandcocoa.ui.game.GameNavigation
 import ch.lkmc.chessandcocoa.ui.game.GameScreen
 import ch.lkmc.chessandcocoa.ui.home.HomeActions
 import ch.lkmc.chessandcocoa.ui.home.HomeScreen
-import ch.lkmc.chessandcocoa.ui.home.NewGameDialog
+import ch.lkmc.chessandcocoa.ui.home.NewGameSheet
+import ch.lkmc.chessandcocoa.ui.review.ReviewContext
 import ch.lkmc.chessandcocoa.ui.review.ReviewScreen
 import ch.lkmc.chessandcocoa.ui.settings.SettingsScreen
 import ch.lkmc.chessandcocoa.ui.theme.CocoaTheme
@@ -64,8 +67,9 @@ private fun App(container: AppContainer) {
 
     when (screen) {
         Screen.HOME -> HomeScreen(
-            canContinue = state.canContinue,
+            resumable = state.resumable,
             engineStarting = engine == EngineStatus.STARTING,
+            lastDifficulty = state.record?.difficulty ?: Difficulty.GENTLE,
             actions = HomeActions(
                 onContinue = {
                     if (state.record?.outcome == null && state.record != null) go(Screen.GAME) else { session.resume(); go(Screen.GAME) }
@@ -84,7 +88,14 @@ private fun App(container: AppContainer) {
                 onSettings = { go(Screen.SETTINGS) },
             ),
         )
-        Screen.REVIEW -> session.review()?.let { review -> ReviewScreen(review, onBack = { screen = Screen.GAME }) }
+        Screen.REVIEW -> {
+            // Rebuilding the review replays its claims, so do it once per record.
+            val record = state.record
+            val review = remember(record) { session.review() }
+            if (record != null && review != null) {
+                ReviewScreen(review, ReviewContext(record.humanSide, record.difficulty, onNewGame = { choosingGame = true }, onBack = { screen = Screen.GAME }))
+            }
+        }
         Screen.SETTINGS -> SettingsScreen(state.preferences, session::updatePreferences, onBack = { screen = if (previous == Screen.GAME) Screen.GAME else Screen.HOME })
         Screen.ABOUT -> AboutScreen(onOpen = { go(if (it == LegalDocument.GPL) Screen.LICENSE else Screen.NOTICES) }, onBack = { screen = Screen.HOME })
         Screen.LICENSE -> LegalTextScreen(LegalDocument.GPL, onBack = { screen = Screen.ABOUT })
@@ -92,6 +103,10 @@ private fun App(container: AppContainer) {
     }
 
     if (choosingGame) {
-        NewGameDialog(onStart = { side, difficulty -> choosingGame = false; session.newGame(side, difficulty) }, onDismiss = { choosingGame = false })
+        NewGameSheet(
+            initialDifficulty = state.record?.difficulty ?: Difficulty.GENTLE,
+            onStart = { side, difficulty -> choosingGame = false; session.newGame(side, difficulty); screen = Screen.GAME },
+            onDismiss = { choosingGame = false },
+        )
     }
 }

@@ -79,6 +79,12 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 [`TeachingPolicy`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/teach/Teaching.kt) picks one primary point per event: game end, then serious consequences, then plan impact (introduced by the recorded intention it refers to), then good tactics. Commentary level only filters what is said. Intentions are revealed only after the player's move touched them, or only in the review. [`Renderer`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/render/Renderer.kt) holds the English templates; a plan is called the reason for a move only when its recorded role allows it.
 
+### Interface
+
+The visual direction (concept Section 4.5) is "evening study": cream paper and cocoa ink by day, deep cocoa surfaces in the evening, following the system setting. All colour lives in [`ui/theme`](../app/src/main/kotlin/ch/lkmc/chessandcocoa/ui/theme/Color.kt): every Material 3 role is set in both themes, and board and mark colours sit in `CocoaColors`. Three accents carry fixed meanings: sage for guidance (selection, legal moves, "Show me why"), honey for the last move and hints, terracotta for check and serious news; mulberry marks teaching targets and threats. Fraunces sets headings and Atkinson Hyperlegible Next, drawn for low-vision readers, sets body text and notation.
+
+The board's size depends only on the window, so coaching never moves it. "Show me why" replays a claim's continuation on the main board itself, under a sage frame and a banner saying the game is unchanged; the live game returns with Back to game or system Back. The last move slides into place only when the shown position advanced by exactly one move. Screen readers reach the status, coaching and actions before the board's 64 labelled squares.
+
 ## 5. Measured results
 
 The harness plays the real coach pipeline against a weakened-Stockfish learner proxy (not a model of people). The [four-family comparison](experiments/2026-10-16-open-file-results.md), before Gentle was weakened, found:

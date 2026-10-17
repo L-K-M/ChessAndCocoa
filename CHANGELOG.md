@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Redesign the interface: a warm daylight theme and an evening theme
+  that follow the system, bundled Fraunces and Atkinson Hyperlegible Next
+  fonts, a framed board whose last move slides into place, a calmer
+  coaching panel, numbered move pairs, and "Show me why" replayed on the
+  main board with a clearly marked frame.
+- Home shows the saved game with its position, and new games are set up
+  in one sheet. The review leads with the result and lays out moments and
+  plans; settings are grouped.
 - Make Gentle weaker: shallower selection, more candidate moves, and more
   frequent bounded concessions, including missed defenses. Player
   assessment stays at full strength.

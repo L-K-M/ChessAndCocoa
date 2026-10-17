@@ -174,6 +174,61 @@ class GameSessionTest {
         assertTrue(numbers.all { it >= 30 }, "move numbers were $numbers")
     }
 
+    @Test
+    fun theMoveListIsNumberedPairs() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        session.play(Move.parseUci("e2e4"))
+        val rows = awaitPly(session, 2).moves
+        assertEquals(1, rows.size)
+        assertEquals(1, rows.single().number)
+        assertNotNull(rows.single().black)
+        assertEquals("e4", rows.single().white)
+    }
+
+    @Test
+    fun aGameStartingWithBlackOpensItsFirstRowWithoutWhite() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = BLACK_TO_MOVE_FEN)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        session.play(Move.parseUci("g8f6"))
+        val rows = withTimeout(TIMEOUT) { session.state.first { it.record?.ply == 2 } }.moves
+        assertEquals(MoveRow(3, null, "Nf6"), rows.first())
+        assertNotNull(rows[1].white)
+        assertEquals(4, rows[1].number)
+    }
+
+    @Test
+    fun aSavedGameIsOfferedToContinue() = runBlocking {
+        val first = session()
+        first.newGame(SideChoice.BLACK, Difficulty.KEEN)
+        awaitPhase(first, Phase.HUMAN_TURN)
+        first.flushSaves()
+
+        val second = session()
+        val summary = withTimeout(TIMEOUT) { second.state.first { it.resumable != null } }.resumable!!
+        assertEquals(Difficulty.KEEN, summary.difficulty)
+        assertEquals(Side.BLACK, summary.humanSide)
+        assertTrue(summary.humanToMove)
+        assertEquals(1, summary.moveNumber)
+        assertEquals(32, summary.board.pieces.size)
+    }
+
+    @Test
+    fun aFinishedGameIsNotOfferedToContinue() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+        assertTrue(session.state.value.canContinue)
+
+        session.resign()
+        val state = awaitPhase(session, Phase.GAME_OVER)
+        assertEquals(null, state.resumable)
+    }
+
     private fun session(seed: Long = 1L): GameSession {
         val context = RuntimeEnvironment.getApplication()
         return GameSession(Coach(Searcher(analyst)), GameStore(directory), PreferencesStore(context), scope, seeds = { seed })
@@ -191,5 +246,6 @@ class GameSessionTest {
         const val CONCESSION_SEED = 7L
         const val PRACTICE_MOVES = 8
         const val MOVE_30_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 30"
+        const val BLACK_TO_MOVE_FEN = "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
     }
 }
