@@ -3,6 +3,9 @@ package ch.lkmc.chessandcocoa.coach.render
 
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
 import ch.lkmc.chessandcocoa.chess.PieceType
+import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
+import ch.lkmc.chessandcocoa.coach.decide.Obligation
+import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
 import ch.lkmc.chessandcocoa.coach.assess.ImpactKind
 import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
@@ -19,6 +22,32 @@ enum class NumberDetail { HIDDEN, SHOWN }
  * Wording never adds a participant, consequence or certainty the claim lacks.
  */
 object Renderer {
+
+    /** Present-tense intent from a verified frozen decision, never from later analysis. */
+    fun intent(decision: DecisionRecord): String {
+        val plan = decision.plan
+        if (plan != null) {
+            val target = plan.current.targetSquare
+            val goal = when (plan.family) {
+                PlanFamily.ATTACK_KING_SQUARE -> "build an attack on $target near your king"
+                PlanFamily.WIN_WEAK_UNIT -> "try to win your ${name(plan.target.pieceType)} on $target"
+                PlanFamily.PROMOTE_PASSED_PAWN -> "help my passed pawn toward promotion"
+                PlanFamily.INVADE_OPEN_FILE -> "bring a rook through an open file toward your pawn on $target"
+            }
+            return if (decision.planIsReason) "I chose this move to $goal." else "This move also fits my plan to $goal."
+        }
+
+        return when (decision.selectionBasis) {
+            SelectionBasis.IMMEDIATE_OBLIGATION -> when {
+                Obligation.FORCED_MOVE in decision.obligations -> "This was my only legal move."
+                Obligation.IN_CHECK in decision.obligations -> "I need to get my king out of check."
+                else -> "I am responding to a threat before pursuing a longer plan."
+            }
+            SelectionBasis.TACTICAL_OPPORTUNITY -> "I chose a tactical opportunity rather than a longer plan."
+            // Deliberate concessions are disclosed only in review, not disguised as plans.
+            else -> "I have no longer plan to explain for this move."
+        }
+    }
 
     fun render(claim: Claim, numbers: NumberDetail = NumberDetail.HIDDEN): String = when (claim) {
         is Claim.GameOver -> gameOver(claim)

@@ -5,6 +5,10 @@ import ch.lkmc.chessandcocoa.chess.Game
 import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
 import ch.lkmc.chessandcocoa.chess.Position
+import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
+import ch.lkmc.chessandcocoa.coach.decide.Obligation
+import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
+import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
 
 /**
  * Re-derives claims from their own evidence (concept Section 16.4): every
@@ -13,6 +17,22 @@ import ch.lkmc.chessandcocoa.chess.Position
  * never shown (R8).
  */
 object ClaimVerifier {
+
+    /** Intent wording must describe the decision that actually produced this position. */
+    fun verifyIntent(decision: DecisionRecord, game: Game): Boolean {
+        val before = game.positions.getOrNull(decision.ply) ?: return false
+        if (game.ply != decision.ply + 1 || game.moves.lastOrNull() != decision.move) return false
+        if (before.fen() != decision.fen || before.sideToMove != decision.side) return false
+        if (decision.history != game.uciMoves().take(decision.ply)) return false
+        if (!before.isLegal(decision.move) || before.san(decision.move) != decision.san) return false
+        if (Obligation.FORCED_MOVE in decision.obligations && before.legalMoves().size != 1) return false
+        if (Obligation.IN_CHECK in decision.obligations && !before.isCheck()) return false
+
+        val plan = decision.plan ?: return decision.selectionBasis != SelectionBasis.PLAN
+        return decision.selectionBasis == SelectionBasis.PLAN && plan.owner == decision.side &&
+            plan.status == PlanStatus.ACTIVE && plan.current.ply == decision.ply &&
+            plan.current.action?.move == decision.move && decision.planAssessment?.holds == true
+    }
 
     /** [game] is the live game the claims describe; continuations must start inside its history. */
     fun verified(claims: List<Claim>, game: Game): List<Claim> = claims.filter { verify(it, game) }

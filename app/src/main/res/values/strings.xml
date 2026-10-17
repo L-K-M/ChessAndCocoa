@@ -59,6 +59,8 @@
     <string name="turn_white">White to move</string>
     <string name="turn_black">Black to move</string>
     <string name="coach_empty">When a move matters, I explain it here.</string>
+    <string name="intent_title">My idea</string>
+    <string name="intent_assisted_note">Your reply is marked as assisted.</string>
     <string name="feedback_show_why">Show me why</string>
     <string name="feedback_hide">Hide</string>
     <string name="feedback_show">Show</string>
@@ -99,7 +101,7 @@
     <string name="review_plans">My plans</string>
     <string name="review_moments">Moments to look at</string>
     <string name="review_concessions">Easier moves I chose on purpose</string>
-    <string name="review_assisted">%1$d of %2$d of your moves were played after a hint.</string>
+    <string name="review_assisted">%1$d of %2$d of your moves were played with help.</string>
     <string name="review_nothing">Nothing stood out in this game.</string>
     <string name="review_in_progress">The game is still going. Spoilers about my plans are shown here.</string>
     <string name="review_result_won">You won</string>
@@ -136,6 +138,8 @@
     <string name="disclosure_after_desc">I reveal what I was planning once your move has touched it.</string>
     <string name="disclosure_review">Only in the review</string>
     <string name="disclosure_review_desc">I keep my plans to myself until the review.</string>
+    <string name="disclosure_with_move">With my move</string>
+    <string name="disclosure_with_move_desc">See my recorded aim as I play, then choose your reply. Your reply counts as assisted.</string>
     <string name="settings_numbers">Show engine numbers</string>
     <string name="settings_numbers_desc">Adds rough pawn values to explanations.</string>
     <string name="settings_coordinates">Board coordinates</string>

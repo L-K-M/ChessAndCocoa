@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
 import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.teach.Hint
+import ch.lkmc.chessandcocoa.coach.teach.OpponentIntent
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.EvidenceFrame
 import ch.lkmc.chessandcocoa.session.Phase
@@ -151,7 +153,9 @@ fun CoachPanel(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.s),
         verticalArrangement = Arrangement.spacedBy(Space.m),
     ) {
-        if (state.events.isEmpty() && state.hint == null) {
+        state.opponentIntent?.let { IntentNote(it) }
+
+        if (state.events.isEmpty() && state.hint == null && state.opponentIntent == null) {
             Text(stringResource(R.string.coach_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -162,6 +166,25 @@ fun CoachPanel(
         if (marks.isNotEmpty()) MarkLegend(marks.map { it.role }.toSet())
 
         if (history == HistoryPlacement.IN_PANEL) MoveHistory(state.moves, HistoryLayout.FLOW)
+    }
+}
+
+@Composable
+private fun IntentNote(intent: OpponentIntent) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.widthIn(max = Space.readingWidth),
+    ) {
+        Column(Modifier.padding(Space.l), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.intent_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).semantics { heading() })
+                Text(intent.moveLabel, style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = TABULAR_FIGURES), modifier = Modifier.padding(start = Space.s))
+            }
+            Text(intent.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            Text(stringResource(R.string.intent_assisted_note), style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
