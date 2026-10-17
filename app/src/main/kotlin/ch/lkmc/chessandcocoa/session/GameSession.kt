@@ -194,7 +194,7 @@ class GameSession(
     fun evidence(event: TeachingEvent): List<EvidenceFrame> {
         val record = _state.value.record ?: return emptyList()
         event.evidence?.let { return it.frames(record.humanSide, lastMove = null) }
-        if (event.ply > record.game.ply) return emptyList()
+        if (event.ply !in 0..record.game.ply) return emptyList()
 
         val explained = BoardSnapshot.of(record.game.truncate(event.ply), record.humanSide, playable = false)
         return listOf(EvidenceFrame(explained, san = null))

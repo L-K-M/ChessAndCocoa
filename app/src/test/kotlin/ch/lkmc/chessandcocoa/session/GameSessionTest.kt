@@ -2,6 +2,9 @@
 package ch.lkmc.chessandcocoa.session
 
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Piece
+import ch.lkmc.chessandcocoa.chess.PieceType
+import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.analysis.Searcher
@@ -249,8 +252,16 @@ class GameSessionTest {
             brief = "", expanded = listOf(""), marks = listOf(MarkedSquare(Square.parse("e4"), SquareRole.MOVED)),
             evidence = null, claims = emptyList(),
         )
-        val frame = session.evidence(note).single()
-        assertEquals(BoardSnapshot.of(replied.game.truncate(1), Side.WHITE, playable = false), frame.board)
+        val board = session.evidence(note).single().board
+        assertEquals(Move.parseUci("e2e4"), board.lastMove)
+        assertEquals(Side.BLACK, board.sideToMove)
+        assertEquals(Piece(Side.WHITE, PieceType.PAWN), board.pieces[Square.parse("e4")])
+        assertEquals(Position.initial().pieces(Side.BLACK), board.pieces.filterValues { it.side == Side.BLACK })
+        assertTrue(board.legalMoves.isEmpty())
+
+        // A note from a damaged save that names no real position shows nothing rather than crashing.
+        assertTrue(session.evidence(note.copy(ply = -1)).isEmpty())
+        assertTrue(session.evidence(note.copy(ply = replied.ply + 1)).isEmpty())
     }
 
     private fun session(seed: Long = 1L): GameSession {
