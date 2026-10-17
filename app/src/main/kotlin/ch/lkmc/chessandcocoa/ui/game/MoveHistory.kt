@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -53,13 +53,13 @@ fun MoveHistory(rows: List<MoveRow>, layout: HistoryLayout, modifier: Modifier =
                 if (rows.isNotEmpty()) listState.animateScrollToItem(rows.lastIndex)
             }
             if (rows.isEmpty()) {
-                Row(modifier.fillMaxWidth().height(STRIP_HEIGHT).padding(horizontal = Space.gutter), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier.fillMaxWidth().heightIn(min = STRIP_HEIGHT).padding(horizontal = Space.gutter), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.moves_empty), style = MaterialTheme.typography.bodyMedium, color = muted)
                 }
                 return
             }
             LazyRow(
-                modifier.fillMaxWidth().height(STRIP_HEIGHT).then(readAsOne),
+                modifier.fillMaxWidth().heightIn(min = STRIP_HEIGHT).then(readAsOne),
                 state = listState,
                 contentPadding = PaddingValues(horizontal = Space.gutter),
                 horizontalArrangement = Arrangement.spacedBy(Space.m),

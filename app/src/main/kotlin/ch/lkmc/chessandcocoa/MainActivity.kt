@@ -69,7 +69,7 @@ private fun App(container: AppContainer) {
         Screen.HOME -> HomeScreen(
             resumable = state.resumable,
             engineStarting = engine == EngineStatus.STARTING,
-            lastDifficulty = state.record?.difficulty ?: Difficulty.GENTLE,
+            lastDifficulty = state.resumable?.difficulty ?: state.record?.difficulty ?: Difficulty.GENTLE,
             actions = HomeActions(
                 onContinue = {
                     if (state.record?.outcome == null && state.record != null) go(Screen.GAME) else { session.resume(); go(Screen.GAME) }
@@ -104,7 +104,7 @@ private fun App(container: AppContainer) {
 
     if (choosingGame) {
         NewGameSheet(
-            initialDifficulty = state.record?.difficulty ?: Difficulty.GENTLE,
+            initialDifficulty = state.resumable?.difficulty ?: state.record?.difficulty ?: Difficulty.GENTLE,
             onStart = { side, difficulty -> choosingGame = false; session.newGame(side, difficulty); screen = Screen.GAME },
             onDismiss = { choosingGame = false },
         )

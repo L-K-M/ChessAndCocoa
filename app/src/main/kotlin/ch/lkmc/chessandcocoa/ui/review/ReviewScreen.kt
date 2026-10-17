@@ -77,11 +77,12 @@ fun ReviewScreen(review: GameReview, context: ReviewContext) {
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.s),
             verticalArrangement = Arrangement.spacedBy(Space.l),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(Modifier.widthIn(max = Space.readingWidth), verticalArrangement = Arrangement.spacedBy(Space.l)) {
                 Result(review, context)
 
-                if (review.episodes.isEmpty() && review.moments.isEmpty()) {
+                if (review.episodes.isEmpty() && review.moments.isEmpty() && review.concessions.isEmpty()) {
                     Text(stringResource(R.string.review_nothing), style = MaterialTheme.typography.bodyLarge)
                 }
 

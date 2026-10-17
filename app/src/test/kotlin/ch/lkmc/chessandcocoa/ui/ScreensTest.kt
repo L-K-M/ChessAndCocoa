@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package ch.lkmc.chessandcocoa.ui
 
+import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -15,7 +20,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
@@ -124,6 +134,20 @@ class ScreensTest {
     fun about() {
         show { AboutScreen(onOpen = {}, onBack = {}) }
         compose.onRoot().captureRoboImage(shot("about"))
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h400dp-xxhdpi")
+    fun settingsMakeRoomForTheNavigationBarOnce() {
+        showOverNavigationBar { SettingsScreen(ExperiencePreferences(), onChange = {}, onBack = {}) }
+        assertScrolledEndClearsNavigationBarOnce()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h400dp-xxhdpi")
+    fun aboutMakesRoomForTheNavigationBarOnce() {
+        showOverNavigationBar { AboutScreen(onOpen = {}, onBack = {}) }
+        assertScrolledEndClearsNavigationBarOnce()
     }
 
     /**
@@ -327,6 +351,34 @@ class ScreensTest {
         assertTrue(corner.right <= root.right, "the board's right edge ${corner.right} leaves the screen at ${root.right}")
     }
 
+    /** Shows [content] edge to edge, as the app does, with a button navigation bar along the bottom. */
+    private fun showOverNavigationBar(content: @Composable () -> Unit) {
+        lateinit var view: View
+        show {
+            view = LocalView.current
+            content()
+        }
+        val bar = with(compose.density) { NAVIGATION_BAR.roundToPx() }
+        val insets = WindowInsetsCompat.Builder().setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, bar)).build()
+        compose.runOnIdle { ViewCompat.dispatchApplyWindowInsets(view, insets) }
+        compose.waitForIdle()
+    }
+
+    /** Scrolled to the end, the last line sits just above the navigation bar, not a second bar's height higher. */
+    private fun assertScrolledEndClearsNavigationBarOnce() {
+        val scroller = compose.onNode(hasScrollAction(), useUnmergedTree = true)
+        scroller.performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, SCROLL_TO_END) }
+        compose.waitForIdle()
+
+        val bar = with(compose.density) { NAVIGATION_BAR.toPx() }
+        val barTop = compose.onRoot().getBoundsInRoot().bottom.let { with(compose.density) { it.toPx() } } - bar
+        val contentBottom = scroller.fetchSemanticsNode().lowestDescendantBottom()
+        assertTrue(barTop - contentBottom < bar, "the content ends ${barTop - contentBottom}px above the navigation bar, a second bar's height")
+    }
+
+    private fun SemanticsNode.lowestDescendantBottom(): Float =
+        children.maxOfOrNull { maxOf(it.boundsInRoot.bottom, it.lowestDescendantBottom()) } ?: boundsInRoot.bottom
+
     private fun show(appearance: Appearance = Appearance.DAYLIGHT, fontScale: Float = 1f, content: @Composable () -> Unit) {
         compose.setContent {
             val density = LocalDensity.current
@@ -379,6 +431,8 @@ class ScreensTest {
         const val SEED = 3L
         const val LARGE_FONT = 1.5f
         const val LARGEST_FONT = 2f
+        const val SCROLL_TO_END = 100_000f
+        val NAVIGATION_BAR = 48.dp
         const val SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
         const val SAVED_FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5"
         const val PROMOTION_FEN = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1"

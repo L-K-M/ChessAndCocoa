@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -55,8 +54,9 @@ fun AboutScreen(onOpen: (LegalDocument) -> Unit, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter).navigationBarsPadding(),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter),
             verticalArrangement = Arrangement.spacedBy(Space.m),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(Modifier.widthIn(max = Space.readingWidth), verticalArrangement = Arrangement.spacedBy(Space.m)) {
                 Row(Modifier.padding(vertical = Space.s), verticalAlignment = Alignment.CenterVertically) {
@@ -126,7 +126,7 @@ fun LegalTextScreen(document: LegalDocument, onBack: () -> Unit) {
                 fontFamily = FontFamily.Monospace,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.m).navigationBarsPadding(),
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.m),
             )
         }
     }
