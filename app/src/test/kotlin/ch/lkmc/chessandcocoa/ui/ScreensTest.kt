@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -204,6 +205,34 @@ class ScreensTest {
         assertPanelBesideBoard()
         compose.onRoot().captureRoboImage(shot("opponent-intent-square-large-text"))
         compose.onNodeWithText("Your reply is marked as assisted.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h600dp-xxhdpi")
+    fun intentAtTheMinimumTwoPaneWidthWithLargeText() {
+        gameWithIntent(fontScale = LARGEST_FONT)
+        assertPanelBesideBoard()
+        compose.onRoot().captureRoboImage(shot("opponent-intent-minimum-two-pane-large-text"))
+        compose.onNodeWithText("Your reply is marked as assisted.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h960dp-xxhdpi")
+    fun aShortTabletKeepsTheExplanationActionInView() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = SCHOLAR_FEN)
+        show { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.onNodeWithContentDescription("g8, black knight").performClick()
+        compose.onNodeWithContentDescription("f6, empty").performClick()
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.GAME_OVER }
+        compose.waitForIdle()
+
+        val explanation = compose.onAllNodesWithText("Show me why").onFirst().getUnclippedBoundsInRoot()
+        val panel = compose.onNode(hasScrollAction(), useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(explanation.bottom <= panel.bottom, "the explanation action should fit without scrolling on a wide screen")
+        assertPanelBesideBoard("a8, black rook")
+        compose.onRoot().captureRoboImage(shot("feedback-short-tablet"))
     }
 
     @Test

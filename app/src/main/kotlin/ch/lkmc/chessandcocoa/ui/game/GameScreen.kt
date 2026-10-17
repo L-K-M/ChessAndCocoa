@@ -251,8 +251,9 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         BoxWithConstraints {
-            // A wide window needs enough room below a width-sized board to make stacking useful.
-            val nearSquare = maxWidth >= TWO_PANE_MIN_WIDTH && maxHeight - maxWidth < SHORT_SCREEN_ROOM
+            // Reserve the action bar before deciding whether a wide window has room to stack.
+            val roomBelowBoard = maxHeight - maxWidth - TOOLBAR_HEIGHT
+            val nearSquare = maxWidth >= TWO_PANE_MIN_WIDTH && roomBelowBoard < STACKED_SCREEN_ROOM
             if (maxWidth > maxHeight || nearSquare) {
                 SideBySideGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions)
             } else {
@@ -525,7 +526,9 @@ private val MENU_WIDTH = 200.dp
 private val TOOLBAR_HEIGHT = 60.dp
 private const val DISABLED_ALPHA = 0.38f
 
-/** Room beyond a width-sized board before stacking is comfortable. */
+/** Below this height beyond the board, the move list stays inside the panel. */
 private val SHORT_SCREEN_ROOM = 330.dp
+/** Room for the header, status and coaching after reserving the board and actions. */
+private val STACKED_SCREEN_ROOM = 330.dp
 private val TWO_PANE_MIN_WIDTH = 600.dp
 private const val WIDE_BOARD_SHARE = 0.56f
