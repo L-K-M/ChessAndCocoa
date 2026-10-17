@@ -5,7 +5,6 @@ import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
-import ch.lkmc.chessandcocoa.coach.evidence.Continuation
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
@@ -187,9 +186,18 @@ class GameSession(
 
     fun review(): GameReview? = _state.value.record?.let(coach::review)
 
-    fun evidence(continuation: Continuation): List<EvidenceFrame> {
-        val orientation = _state.value.record?.humanSide ?: Side.WHITE
-        return continuation.frames(orientation, lastMove = null)
+    /**
+     * What "Show me why" shows for [event]: its continuation from its own start,
+     * or, for a point with no line, the one position it explains (after its
+     * move). Never the live board, which may have moved on since.
+     */
+    fun evidence(event: TeachingEvent): List<EvidenceFrame> {
+        val record = _state.value.record ?: return emptyList()
+        event.evidence?.let { return it.frames(record.humanSide, lastMove = null) }
+        if (event.ply > record.game.ply) return emptyList()
+
+        val explained = BoardSnapshot.of(record.game.truncate(event.ply), record.humanSide, playable = false)
+        return listOf(EvidenceFrame(explained, san = null))
     }
 
     fun updatePreferences(preferences: ExperiencePreferences) {

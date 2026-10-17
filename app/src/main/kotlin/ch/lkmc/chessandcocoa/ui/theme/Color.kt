@@ -5,9 +5,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 // All colour lives here; screens never use ad-hoc Color(0x…) values.
-// "Evening study": cream paper and cocoa ink, with three restrained accents
-// (concept Section 4.5). Every text pair meets WCAG AA in both themes, and no
-// colour carries meaning alone: each highlight also has a shape or a label.
+// "Evening study": cream paper and cocoa ink, with four restrained accents
+// (concept Section 4.5). Every interface text pair meets WCAG AA in both
+// themes, and no colour carries meaning alone: each highlight also has a shape
+// or a label. Board coordinates stay quiet on the cocoa boards, as on most
+// boards (each square is also spoken by name); the high-contrast board's meet AA.
 //
 //   sage        guidance: selection, legal moves, "Show me why", encouraging notes
 //   honey       the last move and hints
@@ -160,7 +162,7 @@ private val HighContrastBoard = BoardPalette(
     dark = Color(0xFF7D8C99),
     frame = Color(0xFF2A2F33),
     coordinateOnLight = Color(0xFF4F5B66),
-    coordinateOnDark = Color(0xFFFFFFFF),
+    coordinateOnDark = Color(0xFF0F1418),
 )
 
 private val Marks = MarkColors(

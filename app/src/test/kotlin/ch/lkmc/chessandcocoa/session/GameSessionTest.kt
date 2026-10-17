@@ -3,11 +3,16 @@ package ch.lkmc.chessandcocoa.session
 
 import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.analysis.Searcher
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
+import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
+import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
+import ch.lkmc.chessandcocoa.coach.teach.Tone
 import ch.lkmc.chessandcocoa.data.GameStore
 import ch.lkmc.chessandcocoa.data.PreferencesStore
 import kotlinx.coroutines.CompletableDeferred
@@ -227,6 +232,25 @@ class GameSessionTest {
         session.resign()
         val state = awaitPhase(session, Phase.GAME_OVER)
         assertEquals(null, state.resumable)
+    }
+
+    /** A point with no line to replay is still shown on its own position, never on a later one. */
+    @Test
+    fun aPointWithoutALineIsShownOnThePositionItExplains() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+        session.play(Move.parseUci("e2e4"))
+        val replied = awaitPly(session, 2).record!!
+
+        // Read after the reply, a note about 1. e4 shows the board right after 1. e4.
+        val note = TeachingEvent(
+            id = "note", ply = 1, revision = replied.revision, tone = Tone.CALM, moveLabel = "1. e4",
+            brief = "", expanded = listOf(""), marks = listOf(MarkedSquare(Square.parse("e4"), SquareRole.MOVED)),
+            evidence = null, claims = emptyList(),
+        )
+        val frame = session.evidence(note).single()
+        assertEquals(BoardSnapshot.of(replied.game.truncate(1), Side.WHITE, playable = false), frame.board)
     }
 
     private fun session(seed: Long = 1L): GameSession {

@@ -183,6 +183,9 @@ class ScreensTest {
         assertTrue(record.events.any { it.brief.startsWith("That allows checkmate: Qxf7#") })
         compose.onRoot().captureRoboImage(shot("game-over"))
 
+        // With no move to make, TalkBack is not offered 64 buttons that do nothing.
+        compose.onNodeWithContentDescription("a8, black rook").assert(hasClickAction().not())
+
         // Hiding the feedback leaves a "Show" toggle, not a second "Show me why".
         compose.onAllNodesWithText("Hide").onFirst().performClick()
         compose.waitForIdle()

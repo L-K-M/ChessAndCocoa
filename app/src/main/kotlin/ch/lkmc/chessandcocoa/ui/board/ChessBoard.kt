@@ -351,6 +351,9 @@ private fun DrawScope.drawSquare(square: Square, cell: Float, palette: BoardPale
         drawRect(marks.guide.copy(alpha = SELECTED_ALPHA), size = Size(cell, cell))
         val stroke = cell * THICK
         drawRect(marks.guide, topLeft = Offset(stroke / 2, stroke / 2), size = Size(cell - stroke, cell - stroke), style = Stroke(stroke))
+        // A light inner edge keeps the outline readable on dark squares, without spilling onto neighbours.
+        val edge = HALO_WIDTH.toPx()
+        drawRect(marks.halo.copy(alpha = HALO_ALPHA), topLeft = Offset(stroke + edge / 2, stroke + edge / 2), size = Size(cell - 2 * stroke - edge, cell - 2 * stroke - edge), style = Stroke(edge))
     }
 }
 
@@ -404,8 +407,8 @@ private fun DrawScope.drawPiece(painter: Painter, origin: Offset, cell: Float) {
 private fun DrawScope.drawOverlays(cell: Float, marks: MarkColors, target: Boolean, occupied: Boolean, check: Boolean, roles: List<SquareRole>) {
     val center = Offset(cell / 2, cell / 2)
     if (target) {
-        if (occupied) drawCaptureCorners(cell, marks.guide.copy(alpha = CAPTURE_ALPHA))
-        else drawCircle(marks.guide.copy(alpha = DOT_ALPHA), radius = cell * DOT_RADIUS, center = center)
+        if (occupied) haloed(marks.halo) { color -> drawCaptureCorners(cell, color ?: marks.guide.copy(alpha = CAPTURE_ALPHA), halo(color)) }
+        else haloed(marks.halo) { color -> drawCircle(color ?: marks.guide.copy(alpha = DOT_ALPHA), radius = cell * DOT_RADIUS + halo(color) / 2, center = center) }
     }
     if (check) haloed(marks.halo) { color -> drawCircle(color ?: marks.check, radius = cell * RING_RADIUS, center = center, style = Stroke(cell * THICK + halo(color))) }
 
@@ -428,8 +431,8 @@ private fun DrawScope.drawOverlays(cell: Float, marks: MarkColors, target: Boole
 }
 
 /** A capture: four wedges filling the square's corners, clear of the piece in the middle. */
-private fun DrawScope.drawCaptureCorners(cell: Float, color: Color) {
-    val wedge = cell * CAPTURE_WEDGE
+private fun DrawScope.drawCaptureCorners(cell: Float, color: Color, grow: Float) {
+    val wedge = cell * CAPTURE_WEDGE + grow
     listOf(Offset(0f, 0f) to Offset(1f, 1f), Offset(cell, 0f) to Offset(-1f, 1f), Offset(0f, cell) to Offset(1f, -1f), Offset(cell, cell) to Offset(-1f, -1f))
         .forEach { (corner, direction) ->
             val path = Path().apply {
@@ -500,8 +503,8 @@ private const val COORDINATE_PAD = 0.06f
 private const val LAST_MOVE_ALPHA = 0.5f
 private const val BRACKET_ALPHA = 0.7f
 private const val SELECTED_ALPHA = 0.28f
-private const val DOT_ALPHA = 0.55f
-private const val CAPTURE_ALPHA = 0.6f
+private const val DOT_ALPHA = 0.8f
+private const val CAPTURE_ALPHA = 0.8f
 private const val CAPTURE_WEDGE = 0.26f
 private const val CHECK_DISC_ALPHA = 0.3f
 private const val DOT_RADIUS = 0.15f

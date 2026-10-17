@@ -28,7 +28,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -46,14 +49,15 @@ import ch.lkmc.chessandcocoa.ui.theme.Space
 /** The four promotion pieces as large tiles on a light square, each named. */
 @Composable
 fun PromotionDialog(moves: List<Move>, side: Side, onChoose: (Move) -> Unit, onDismiss: () -> Unit) {
+    val title = stringResource(R.string.promotion_title)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.padding(horizontal = Space.xl).widthIn(max = DIALOG_WIDTH),
+            modifier = Modifier.padding(horizontal = Space.xl).widthIn(max = DIALOG_WIDTH).semantics { paneTitle = title },
         ) {
             Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.l)) {
-                Text(stringResource(R.string.promotion_title), style = MaterialTheme.typography.headlineSmall)
+                Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                     moves.sortedByDescending { it.promotion?.value ?: 0 }.forEach { move ->
                         val type = move.promotion ?: return@forEach

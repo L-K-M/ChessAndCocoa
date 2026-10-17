@@ -147,7 +147,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
 
     val showWhy: (TeachingEvent) -> Unit = { event ->
         step = 0
-        evidence = Evidence(event, event.evidence?.let(session::evidence).orEmpty())
+        evidence = Evidence(event, session.evidence(event))
     }
 
     // Only events about the position on the board mark it; older ones replay in "Show me why".
@@ -165,11 +165,12 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
         val coordinates = if (state.preferences.showCoordinates) Coordinates.SHOWN else Coordinates.HIDDEN
         val style = if (state.preferences.highContrastBoard) BoardStyle.HIGH_CONTRAST else BoardStyle.COCOA
         if (shown != null) {
-            // Without a line to replay, the position explained is the live one; it is still not playable here.
+            // Marks belong to the position the session explains; should it have none, the live
+            // board stands in unmarked and, like every replay, does not take moves.
             ChessBoard(
                 board = frame?.board ?: liveBoard,
                 modifier = modifier,
-                marks = if (step == 0) shown.event.marks else emptyList(),
+                marks = if (step == 0 && frame != null) shown.event.marks else emptyList(),
                 arrows = shown.frames.getOrNull(step + 1)?.board?.lastMove?.let(::listOf).orEmpty(),
                 coordinates = coordinates,
                 style = style,
@@ -185,7 +186,8 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
                 coordinates = coordinates,
                 style = style,
                 animation = liveAnimation,
-                onSquareTap = onTap,
+                // Squares are buttons only while a move can be made, so TalkBack does not offer dead ones.
+                onSquareTap = onTap.takeIf { state.phase == Phase.HUMAN_TURN },
             )
         }
     }
