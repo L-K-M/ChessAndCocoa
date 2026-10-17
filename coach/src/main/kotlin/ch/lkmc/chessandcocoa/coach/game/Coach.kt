@@ -22,6 +22,7 @@ import ch.lkmc.chessandcocoa.coach.teach.GameReview
 import ch.lkmc.chessandcocoa.coach.teach.Hint
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
 import ch.lkmc.chessandcocoa.coach.teach.Hints
+import ch.lkmc.chessandcocoa.coach.teach.OpponentIntent
 import ch.lkmc.chessandcocoa.coach.teach.Reviews
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.coach.teach.TeachingPolicy
@@ -105,7 +106,7 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
         return StepResult(next, event)
     }
 
-    /** Decides and plays the opponent's move. Its intention stays hidden until the human's next choice (Section 4.2). */
+    /** Decides and plays the opponent's move. Disclosure is handled separately from selection. */
     suspend fun playComputerMove(record: GameRecord, preferences: ExperiencePreferences, nowMillis: Long): StepResult {
         require(record.outcome == null && !record.isHumanTurn) { "Not the opponent's turn" }
         val game = record.game
@@ -148,6 +149,25 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
         return StepResult(next, event)
     }
 
+    /** Opt-in early disclosure; the next reply stays assisted even if the player hides the aim. */
+    fun revealOpponentIntent(record: GameRecord, nowMillis: Long): Pair<GameRecord, OpponentIntent?> {
+        if (!record.isHumanTurn) return record to null
+        val decision = record.lastDecision ?: return record to null
+        if (!ClaimVerifier.verifyIntent(decision, record.game)) return record to null
+
+        val before = record.game.positions[decision.ply]
+        val intent = OpponentIntent(decision.id, moveLabel(before, decision.move), Renderer.intent(decision))
+        if (record.ply in record.intentReveals) return record to intent
+
+        val revealed = record.copy(
+            revision = record.revision + 1,
+            intentReveals = record.intentReveals + record.ply,
+            revealedEpisodes = record.revealedEpisodes + listOfNotNull(decision.plan?.episodeId),
+            updatedAtMillis = nowMillis,
+        )
+        return revealed to intent
+    }
+
     /** A progressive hint for the human's current decision; the move becomes assisted. */
     suspend fun hint(record: GameRecord, level: HintLevel, nowMillis: Long): Pair<GameRecord, Hint> {
         require(record.isHumanTurn) { "Hints are for the human's turn" }
@@ -175,6 +195,7 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
             assessments = record.assessments.filter { it.ply >= targetPly },
             events = record.events.filter { it.ply > targetPly },
             hints = record.hints.filter { it.ply > targetPly },
+            intentReveals = record.intentReveals.filter { it > targetPly }.toSet(),
         )
         return record.copy(
             branchId = "b$branchNumber",
@@ -186,6 +207,7 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
             events = record.events.filter { it.ply <= targetPly },
             // The player is back at a decision whose hints they have seen: it stays assisted.
             hints = record.hints.filter { it.ply <= targetPly },
+            intentReveals = record.intentReveals.filter { it <= targetPly }.toSet(),
             abandoned = record.abandoned + abandoned,
             resignedBy = null,
             updatedAtMillis = nowMillis,

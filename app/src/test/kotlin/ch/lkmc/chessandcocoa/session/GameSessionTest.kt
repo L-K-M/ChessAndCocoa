@@ -13,6 +13,7 @@ import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
 import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
+import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.coach.teach.Tone
@@ -38,6 +39,7 @@ import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = android.app.Application::class)
@@ -66,6 +68,86 @@ class GameSessionTest {
         val state = awaitPhase(session, Phase.HUMAN_TURN)
         assertEquals(Side.BLACK, state.record!!.humanSide)
         assertEquals(1, state.record!!.ply)
+        assertNull(state.opponentIntent)
+        assertTrue(state.record!!.intentReveals.isEmpty())
+    }
+
+    @Test
+    fun showingIntentIsOptionalAndSurvivesHidingSavingAndTakingBack() = runBlocking {
+        val session = session()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        val before = awaitPhase(session, Phase.HUMAN_TURN).record!!
+
+        session.updatePreferences(session.state.value.preferences.copy(disclosure = DisclosureSetting.WITH_MOVE))
+        val shown = session.state.value
+        assertEquals(before.lastDecision!!.id, assertNotNull(shown.opponentIntent).decisionId)
+        assertEquals(before.decisions, shown.record!!.decisions)
+        assertTrue(shown.record!!.assistedAt(1))
+
+        session.updatePreferences(shown.preferences.copy(disclosure = DisclosureSetting.REVIEW_ONLY))
+        assertNull(session.state.value.opponentIntent)
+        assertTrue(session.state.value.record!!.assistedAt(1))
+        session.flushSaves()
+
+        val resumed = session()
+        resumed.resume()
+        val restored = awaitPly(resumed, 1)
+        assertEquals(DisclosureSetting.REVIEW_ONLY, restored.preferences.disclosure)
+        assertNull(restored.opponentIntent)
+        assertTrue(restored.record!!.assistedAt(1))
+
+        resumed.play(restored.board!!.legalMoves.values.flatten().first())
+        val replied = awaitPly(resumed, 3)
+        assertTrue(replied.record!!.assessments.single().assisted)
+        assertEquals(1, resumed.review()!!.assistedMoves)
+        resumed.takeBack()
+        assertTrue(awaitPly(resumed, 1).record!!.assistedAt(1))
+    }
+
+    @Test
+    fun intentAppearsWithTheOpponentsMoveAndClearsAsSoonAsThePlayerMoves() = runBlocking {
+        val session = session()
+        session.updatePreferences(session.state.value.preferences.copy(disclosure = DisclosureSetting.WITH_MOVE))
+        val gate = CompletableDeferred<Unit>()
+        analyst.gate = gate
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        assertNull(awaitPhase(session, Phase.OPPONENT_THINKING).opponentIntent)
+        gate.complete(Unit)
+        analyst.gate = null
+
+        val shown = awaitPly(session, 1)
+        assertNotNull(shown.opponentIntent)
+        session.flushSaves()
+        val resumed = session()
+        resumed.resume()
+        assertEquals(shown.opponentIntent, awaitPly(resumed, 1).opponentIntent)
+
+        analyst.gate = CompletableDeferred()
+        resumed.play(resumed.state.value.board!!.legalMoves.values.flatten().first())
+        assertNull(resumed.state.value.opponentIntent)
+        resumed.takeBack()
+        assertNotNull(resumed.state.value.opponentIntent)
+        resumed.newGame(SideChoice.WHITE, Difficulty.GENTLE)
+        assertNull(resumed.state.value.opponentIntent)
+    }
+
+    @Test
+    fun aFailedAssessmentRestoresTheIntentWithTheBoard() = runBlocking {
+        val session = session()
+        session.updatePreferences(session.state.value.preferences.copy(disclosure = DisclosureSetting.WITH_MOVE))
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        awaitPhase(session, Phase.HUMAN_TURN)
+
+        // Finish warming the shared root; a move outside its candidates needs a fresh search.
+        session.hint()
+        val ready = withTimeout(TIMEOUT) { session.state.first { it.hint != null && it.phase == Phase.HUMAN_TURN } }
+        val intent = assertNotNull(ready.opponentIntent)
+        analyst.failures = 1
+        session.play(ready.board!!.legalMoves.values.flatten().last())
+
+        val failed = withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE && it.phase == Phase.HUMAN_TURN } }
+        assertEquals(ready.board, failed.board)
+        assertEquals(intent, failed.opponentIntent)
     }
 
     @Test

@@ -25,6 +25,7 @@ data class AbandonedBranch(
     val assessments: List<MoveAssessment>,
     val events: List<TeachingEvent>,
     val hints: List<HintUse> = emptyList(),
+    val intentReveals: Set<Int> = emptySet(),
 )
 
 /** Hints shown for one human decision; any hint makes the move assisted (Section 4.3). */
@@ -53,6 +54,8 @@ data class GameRecord(
     val episodes: List<PlanInstance> = emptyList(),
     val events: List<TeachingEvent> = emptyList(),
     val hints: List<HintUse> = emptyList(),
+    /** Human decision plies where the opponent's aim was shown before the reply. */
+    val intentReveals: Set<Int> = emptySet(),
     /** Episodes whose intention has been shown to the player. */
     val revealedEpisodes: Set<String> = emptySet(),
     val abandoned: List<AbandonedBranch> = emptyList(),
@@ -78,7 +81,7 @@ data class GameRecord(
     /** The opponent's open plan episode, if any. */
     val openEpisode: PlanInstance? get() = episodes.lastOrNull { it.isOpen }
 
-    fun assistedAt(ply: Int): Boolean = hints.any { it.ply == ply }
+    fun assistedAt(ply: Int): Boolean = ply in intentReveals || hints.any { it.ply == ply }
 
     fun hintLevelAt(ply: Int): HintLevel? = hints.filter { it.ply == ply }.maxByOrNull { it.level.ordinal }?.level
 }

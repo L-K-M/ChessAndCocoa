@@ -185,11 +185,13 @@ private fun commentaryDescription(level: CommentaryLevel): Int = when (level) {
 }
 
 private fun disclosureLabel(setting: DisclosureSetting): Int = when (setting) {
+    DisclosureSetting.WITH_MOVE -> R.string.disclosure_with_move
     DisclosureSetting.AFTER_CHOICE -> R.string.disclosure_after
     DisclosureSetting.REVIEW_ONLY -> R.string.disclosure_review
 }
 
 private fun disclosureDescription(setting: DisclosureSetting): Int = when (setting) {
+    DisclosureSetting.WITH_MOVE -> R.string.disclosure_with_move_desc
     DisclosureSetting.AFTER_CHOICE -> R.string.disclosure_after_desc
     DisclosureSetting.REVIEW_ONLY -> R.string.disclosure_review_desc
 }
