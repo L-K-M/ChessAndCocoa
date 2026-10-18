@@ -68,6 +68,7 @@ import ch.lkmc.chessandcocoa.session.SideChoice
 import ch.lkmc.chessandcocoa.ui.board.BoardDetail
 import ch.lkmc.chessandcocoa.ui.board.ChessBoard
 import ch.lkmc.chessandcocoa.ui.board.Coordinates
+import ch.lkmc.chessandcocoa.ui.board.PieceArtwork
 import ch.lkmc.chessandcocoa.ui.board.drawableFor
 import ch.lkmc.chessandcocoa.ui.common.SectionHeader
 import ch.lkmc.chessandcocoa.ui.game.difficultyLabel
@@ -300,7 +301,7 @@ fun NewGameSheet(initialDifficulty: Difficulty, onStart: (SideChoice, Difficulty
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             sideKings(choice).forEach { king ->
-                                Image(painterResource(drawableFor(king)), contentDescription = null, modifier = Modifier.size(KING_ICON))
+                                Image(painterResource(drawableFor(king, PieceArtwork.CLASSIC)), contentDescription = null, modifier = Modifier.size(KING_ICON))
                             }
                             Text(stringResource(sideLabel(choice)), modifier = Modifier.padding(start = Space.xs))
                         }

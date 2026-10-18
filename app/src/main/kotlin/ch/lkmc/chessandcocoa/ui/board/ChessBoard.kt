@@ -62,6 +62,9 @@ import ch.lkmc.chessandcocoa.ui.theme.MarkColors
 /** Board looks; readability first (Section 4.5). */
 enum class BoardStyle { COCOA, HIGH_CONTRAST }
 
+/** Classic silhouettes stay clear at small sizes and on the high-contrast board. */
+enum class PieceArtwork { CERAMIC, CLASSIC }
+
 enum class Coordinates { SHOWN, HIDDEN }
 
 /** The live game, or a replayed position ("Show me why") that must never be mistaken for it. */
@@ -107,7 +110,8 @@ fun ChessBoard(
 
     val targets = selected?.let { board.legalMoves[it] }.orEmpty().map { it.to }.toSet()
     val roles = marks.groupBy({ it.square }, { it.role }).mapValues { (_, list) -> list.distinct() }
-    val pieces = piecePainters()
+    val artwork = if (style == BoardStyle.HIGH_CONTRAST || detail == BoardDetail.THUMBNAIL) PieceArtwork.CLASSIC else PieceArtwork.CERAMIC
+    val pieces = piecePainters(artwork)
     val measurer = rememberTextMeasurer(cacheSize = COORDINATE_LABELS)
     val coordinateStyle = MaterialTheme.typography.labelSmall
 
@@ -253,8 +257,8 @@ private class PreviousBoard {
 }
 
 @Composable
-private fun piecePainters(): Map<Piece, Painter> =
-    Side.entries.flatMap { side -> PieceType.entries.map { Piece(side, it) } }.associateWith { painterResource(drawableFor(it)) }
+private fun piecePainters(artwork: PieceArtwork): Map<Piece, Painter> =
+    Side.entries.flatMap { side -> PieceType.entries.map { Piece(side, it) } }.associateWith { painterResource(drawableFor(it, artwork)) }
 
 @Composable
 private fun squareDescription(square: Square, piece: Piece?): String {
@@ -298,22 +302,22 @@ fun roleLabel(role: SquareRole): Int = when (role) {
 }
 
 @DrawableRes
-fun drawableFor(piece: Piece): Int = when (piece.side) {
+fun drawableFor(piece: Piece, artwork: PieceArtwork = PieceArtwork.CERAMIC): Int = when (piece.side) {
     Side.WHITE -> when (piece.type) {
-        PieceType.PAWN -> R.drawable.piece_wp
-        PieceType.KNIGHT -> R.drawable.piece_wn
-        PieceType.BISHOP -> R.drawable.piece_wb
-        PieceType.ROOK -> R.drawable.piece_wr
-        PieceType.QUEEN -> R.drawable.piece_wq
-        PieceType.KING -> R.drawable.piece_wk
+        PieceType.PAWN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wp else R.drawable.cocoa_piece_wp
+        PieceType.KNIGHT -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wn else R.drawable.cocoa_piece_wn
+        PieceType.BISHOP -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wb else R.drawable.cocoa_piece_wb
+        PieceType.ROOK -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wr else R.drawable.cocoa_piece_wr
+        PieceType.QUEEN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wq else R.drawable.cocoa_piece_wq
+        PieceType.KING -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wk else R.drawable.cocoa_piece_wk
     }
     Side.BLACK -> when (piece.type) {
-        PieceType.PAWN -> R.drawable.piece_bp
-        PieceType.KNIGHT -> R.drawable.piece_bn
-        PieceType.BISHOP -> R.drawable.piece_bb
-        PieceType.ROOK -> R.drawable.piece_br
-        PieceType.QUEEN -> R.drawable.piece_bq
-        PieceType.KING -> R.drawable.piece_bk
+        PieceType.PAWN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bp else R.drawable.cocoa_piece_bp
+        PieceType.KNIGHT -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bn else R.drawable.cocoa_piece_bn
+        PieceType.BISHOP -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bb else R.drawable.cocoa_piece_bb
+        PieceType.ROOK -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_br else R.drawable.cocoa_piece_br
+        PieceType.QUEEN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bq else R.drawable.cocoa_piece_bq
+        PieceType.KING -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bk else R.drawable.cocoa_piece_bk
     }
 }
 

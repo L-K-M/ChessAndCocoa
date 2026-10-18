@@ -81,6 +81,13 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 ### Interface
 
+The standard board and promotion chooser use ivory and espresso ceramic
+pieces; high-contrast boards and their promotion chooser, miniature boards and small side selectors keep
+the original vector silhouettes. The matching cocoa-and-knight mark appears
+on the home and about screens and the launcher. Source artwork, generation
+prompts and asset rebuild commands are in
+[`media-sources/ARTWORK.md`](../media-sources/ARTWORK.md).
+
 The visual direction (concept Section 4.5) is "evening study": cream paper and cocoa ink by day, deep cocoa surfaces in the evening, following the system setting. All Compose colour lives in [`ui/theme`](../app/src/main/kotlin/ch/lkmc/chessandcocoa/ui/theme/Color.kt): every Material 3 role is set in both themes, and board and mark colours sit in `CocoaColors`. The window background in `res/values*/colors.xml` repeats the paper tone, because the platform theme cannot read Compose colours. Four accents carry fixed meanings: sage for guidance (selection, legal moves, "Show me why"), honey for the last move and hints, terracotta for check and serious news, and mulberry for teaching targets and threats. Fraunces sets headings and Atkinson Hyperlegible Next, drawn for low-vision readers, sets body text and notation.
 
 The board's size depends only on the window, so coaching never moves it. During the player's turn, tapping any piece selects it and lists, and marks on the board, the pieces of its own side that defend it; this board fact is not counted as a hint. Landscape and wide, near-square windows place coaching beside the board; tall windows stack it below. A board position setting places the board on the left (the default) or the right in those layouts. Tapping feedback or "Show me why" replays its evidence on the main board, under a sage frame and a banner saying the game is unchanged; Back to game or system Back restores play. Piece marks follow their participants through captures; arrows and text describe the next move. An exposed-piece explanation can compare the capture with a stronger alternative that enables a recapture, checked on both branches and labeled as conditional. The last move slides into place only when the shown position advanced by exactly one move within the same line. Screen readers reach the status, coaching and actions before the board's 64 labelled squares.
