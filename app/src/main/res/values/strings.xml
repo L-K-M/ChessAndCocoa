@@ -60,6 +60,12 @@
     <string name="turn_black">Black to move</string>
     <string name="coach_empty">When a move matters, I explain it here.</string>
     <string name="intent_title">My idea</string>
+    <string name="piece_on_square">%1$s on %2$s</string>
+    <plurals name="protection_count">
+        <item quantity="one">Protected by %d piece:</item>
+        <item quantity="other">Protected by %d pieces:</item>
+    </plurals>
+    <string name="protection_none">Not protected by any piece.</string>
     <string name="intent_assisted_note">Your reply is marked as assisted.</string>
     <string name="feedback_show_why">Show me why</string>
     <string name="feedback_hide">Hide</string>

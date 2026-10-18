@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -45,7 +46,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.chessandcocoa.R
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
+import ch.lkmc.chessandcocoa.chess.Piece
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
 import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.teach.Hint
@@ -139,14 +142,19 @@ fun EvidenceBanner(modifier: Modifier = Modifier) {
     }
 }
 
+/** The selected piece and the pieces of its own side that defend it, as the session computed them. */
+data class Protection(val square: Square, val piece: Piece, val defenders: List<Pair<Square, Piece>>)
+
 /**
- * The coaching panel: the teaching points for this turn, any hint, and the
- * legend for the marks on the board. One point per event (Section 4.3).
+ * The coaching panel: how a selected piece is protected, the teaching points
+ * for this turn, any hint, and the legend for the marks on the board. One
+ * point per event (Section 4.3).
  */
 @Composable
 fun CoachPanel(
     state: SessionState,
     marks: List<MarkedSquare>,
+    protection: Protection?,
     feedbackHidden: Boolean,
     onToggleFeedback: () -> Unit,
     onShowWhy: (TeachingEvent) -> Unit,
@@ -156,9 +164,10 @@ fun CoachPanel(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.s),
         verticalArrangement = Arrangement.spacedBy(Space.m),
     ) {
+        protection?.let { ProtectionNote(it) }
         state.opponentIntent?.let { IntentNote(it) }
 
-        if (state.events.isEmpty() && state.hint == null && state.opponentIntent == null) {
+        if (state.events.isEmpty() && state.hint == null && state.opponentIntent == null && protection == null) {
             Text(stringResource(R.string.coach_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -169,6 +178,32 @@ fun CoachPanel(
         if (marks.isNotEmpty()) MarkLegend(marks.map { it.role }.toSet())
 
         if (history == HistoryPlacement.IN_PANEL) MoveHistory(state.moves, HistoryLayout.FLOW)
+    }
+}
+
+/** A board fact the player could count themselves, so it is not a hint and marks nothing as assisted. */
+@Composable
+private fun ProtectionNote(protection: Protection) {
+    val count = protection.defenders.size
+    val summary = if (count == 0) stringResource(R.string.protection_none) else pluralStringResource(R.plurals.protection_count, count, count)
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.large, modifier = Modifier.widthIn(max = Space.readingWidth)) {
+        Column(Modifier.padding(Space.l), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+            Text(
+                stringResource(R.string.piece_on_square, pieceName(protection.piece), protection.square.name).replaceFirstChar(Char::titlecase),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.semantics { heading() },
+            )
+            // One announcement per tap: the count, then each defender.
+            Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+                Text(summary, style = MaterialTheme.typography.bodyLarge)
+                protection.defenders.forEach { (square, piece) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MarkGlyph(SquareRole.DEFENDER)
+                        Text(stringResource(R.string.piece_on_square, pieceName(piece), square.name), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = Space.s))
+                    }
+                }
+            }
+        }
     }
 }
 
