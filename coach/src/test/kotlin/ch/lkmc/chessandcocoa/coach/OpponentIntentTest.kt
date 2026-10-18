@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package ch.lkmc.chessandcocoa.coach
 
+import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.decide.Obligation
@@ -10,6 +11,9 @@ import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
+import ch.lkmc.chessandcocoa.coach.plan.PlanAction
+import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
+import ch.lkmc.chessandcocoa.coach.plan.Subgoal
 import ch.lkmc.chessandcocoa.coach.render.Renderer
 import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
@@ -73,6 +77,22 @@ class OpponentIntentTest {
         val causal = Renderer.intent(decision.copy(planRole = PlanRole.DECISIVE))
         assertTrue(concurrent.startsWith("This move also fits my plan"), concurrent)
         assertTrue(causal.startsWith("I chose this move to"), causal)
+    }
+
+    @Test
+    fun aMoveThatTakesThePlansTargetSaysSoInsteadOfStillAimingAtIt() = runBlocking {
+        val record = opening(Coach(TestEngine.searcher()))
+        val decision = assertNotNull(record.lastDecision)
+        val plan = assertNotNull(decision.plan)
+        val strike = plan.copy(revisions = plan.revisions.dropLast(1) + plan.current.copy(action = PlanAction(decision.move, Subgoal.STRIKE)))
+
+        val open = Renderer.intent(decision.copy(plan = strike))
+        val weak = Renderer.intent(decision.copy(plan = strike.copy(family = PlanFamily.WIN_WEAK_UNIT, target = strike.target.copy(pieceType = PieceType.PAWN))))
+
+        assertEquals("I chose this move to take your pawn on b7, as my plan intended.", open)
+        assertEquals("I chose this move to take your pawn on b7, as my plan intended.", weak)
+        assertTrue(Renderer.intent(decision.copy(plan = strike, planRole = PlanRole.CONCURRENT)).startsWith("This move takes your pawn on b7"))
+        assertFalse(ClaimVerifier.verifyIntent(decision.copy(plan = strike), record.game), "a quiet rook move takes nothing")
     }
 
     @Test

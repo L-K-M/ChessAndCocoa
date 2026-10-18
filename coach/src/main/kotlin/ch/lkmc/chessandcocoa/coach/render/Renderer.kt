@@ -10,6 +10,8 @@ import ch.lkmc.chessandcocoa.coach.assess.ImpactKind
 import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
+import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
+import ch.lkmc.chessandcocoa.coach.plan.Subgoal
 import ch.lkmc.chessandcocoa.coach.plan.TransitionReason
 
 /** Whether numeric detail may appear (Section 4.4: off by default). */
@@ -28,6 +30,7 @@ object Renderer {
         val plan = decision.plan
         if (plan != null) {
             val target = plan.current.targetSquare
+            if (plan.current.action?.subgoal == Subgoal.STRIKE) return strike(plan, decision.planIsReason)
             val goal = when (plan.family) {
                 PlanFamily.ATTACK_KING_SQUARE -> "build an attack on $target near your king"
                 PlanFamily.WIN_WEAK_UNIT -> "try to win your ${name(plan.target.pieceType)} on $target"
@@ -47,6 +50,23 @@ object Renderer {
             // Deliberate concessions are disclosed only in review, not disguised as plans.
             else -> "I have no longer plan to explain for this move."
         }
+    }
+
+    /**
+     * A move that carries out the plan's last step says what it does, not
+     * what it is still aiming for: "I chose this move to take your pawn on g3,
+     * as my plan intended." `ClaimVerifier.verifyIntent` checks the capture,
+     * strike or promotion on the board.
+     */
+    private fun strike(plan: PlanInstance, planIsReason: Boolean): String {
+        val target = plan.current.targetSquare
+        val (aim, does) = when (plan.family) {
+            PlanFamily.WIN_WEAK_UNIT -> "take your ${name(plan.target.pieceType)} on $target" to "takes your ${name(plan.target.pieceType)} on $target"
+            PlanFamily.INVADE_OPEN_FILE -> "take your pawn on $target" to "takes your pawn on $target"
+            PlanFamily.ATTACK_KING_SQUARE -> "strike on $target, next to your king" to "strikes on $target, next to your king"
+            PlanFamily.PROMOTE_PASSED_PAWN -> "promote my passed pawn" to "promotes my passed pawn"
+        }
+        return if (planIsReason) "I chose this move to $aim, as my plan intended." else "This move $does, which also fits my plan."
     }
 
     fun render(claim: Claim, numbers: NumberDetail = NumberDetail.HIDDEN): String = when (claim) {
