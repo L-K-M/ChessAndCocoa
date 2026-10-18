@@ -51,13 +51,15 @@ object Renderer {
         if (Obligation.FORCED_MOVE in decision.obligations) return "This was my only legal move."
         if (Obligation.IN_CHECK in decision.obligations) return "I need to get my king out of check."
 
-        return when (decision.selectionBasis) {
+        val reason = when (decision.selectionBasis) {
             SelectionBasis.IMMEDIATE_OBLIGATION -> "I am responding to a threat before pursuing a longer plan."
             SelectionBasis.TACTICAL_OPPORTUNITY -> "I chose a tactical opportunity rather than a longer plan."
             // Deliberate concessions are disclosed only in review, not disguised as plans: they share these words.
-            else -> turnedDown?.let { "${setAside(it, decision)} This move is not part of a longer plan." }
-                ?: "None of my plan ideas fit this position, so this move is not part of a longer plan."
+            else -> if (turnedDown != null) "This move is not part of a longer plan."
+                else "None of my plan ideas fit this position, so this move is not part of a longer plan."
         }
+        // ClaimVerifier.turnedDownPlan gives no plan for forced moves or check, so every plan it gives is named here and counts as seen.
+        return turnedDown?.let { "${setAside(it, decision)} $reason" } ?: reason
     }
 
     /** "I looked at a plan to win your pawn on e5, but you would have had a good answer to it." */

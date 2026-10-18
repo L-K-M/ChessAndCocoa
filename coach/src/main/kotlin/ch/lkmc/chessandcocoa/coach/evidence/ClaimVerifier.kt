@@ -45,13 +45,15 @@ object ClaimVerifier {
     }
 
     /**
-     * The first plan [decision] tested and turned down, for "I looked at a
-     * plan to …, but …". Null when a plan drove the move, none was turned
-     * down, or the target no longer stands where the record names it (an
-     * open plan's target can have moved since its last revision).
+     * The first plan [decision] tested and turned down whose target still
+     * stands where the record names it, for "I looked at a plan to …, but …".
+     * One whose target has moved since its last revision is skipped. Null
+     * when a plan drove the move, or the move was forced or answered check:
+     * plans are not tested then, and the position is the whole reason.
      */
     fun turnedDownPlan(decision: DecisionRecord, game: Game): PlanConsideration? {
         if (decision.plan != null) return null
+        if (decision.obligations.any { it == Obligation.FORCED_MOVE || it == Obligation.IN_CHECK }) return null
         val before = game.positions.getOrNull(decision.ply) ?: return null
         return decision.considered.firstOrNull { it.outcome in TURNED_DOWN && namesItsTarget(it, decision.side, before) }
     }

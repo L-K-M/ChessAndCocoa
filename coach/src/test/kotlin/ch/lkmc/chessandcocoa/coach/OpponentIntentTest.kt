@@ -147,6 +147,36 @@ class OpponentIntentTest {
     }
 
     @Test
+    fun aPlanSetAsideIsNamedBeforeAThreatOrATacticButNotInCheck() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val record = opening(coach)
+        val recorded = assertNotNull(record.lastDecision)
+        val turnedDown = PlanConsideration("p-weak-b7", PlanFamily.WIN_WEAK_UNIT, Square.parse("b7"), ConsiderationOutcome.NO_ROUTE)
+        val lookedAt = "I looked at a plan to win your pawn on b7, but I found no safe next step for it."
+
+        // The threat or the tactic stays the reason; the plan set aside is named first, so the player has seen it.
+        val reasons = mapOf(
+            SelectionBasis.IMMEDIATE_OBLIGATION to "I am responding to a threat before pursuing a longer plan.",
+            SelectionBasis.TACTICAL_OPPORTUNITY to "I chose a tactical opportunity rather than a longer plan.",
+        )
+        for ((basis, reason) in reasons) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis,
+                obligations = if (basis == SelectionBasis.IMMEDIATE_OBLIGATION) listOf(Obligation.MATERIAL_THREAT) else emptyList(),
+                considered = listOf(turnedDown))
+            val (revealed, intent) = coach.revealOpponentIntent(record.copy(decisions = record.decisions.dropLast(1) + decision), 1)
+            assertEquals("$lookedAt $reason", assertNotNull(intent).text)
+            assertTrue(turnedDown.episodeId in revealed.revealedEpisodes, "a plan the player was told about counts as seen")
+        }
+
+        // In check or with one legal move, plans are not tested, so none is named.
+        for (obligation in listOf(Obligation.IN_CHECK, Obligation.FORCED_MOVE)) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = SelectionBasis.IMMEDIATE_OBLIGATION,
+                obligations = listOf(obligation), considered = listOf(turnedDown))
+            assertNull(ClaimVerifier.turnedDownPlan(decision, record.game), obligation.name)
+        }
+    }
+
+    @Test
     fun beingInCheckIsSaidTheSameWayWhateverTheMoveChosen() = runBlocking {
         val recorded = assertNotNull(opening(Coach(TestEngine.searcher())).lastDecision)
         for (basis in listOf(SelectionBasis.IMMEDIATE_OBLIGATION, SelectionBasis.DIFFICULTY_CONCESSION)) {
