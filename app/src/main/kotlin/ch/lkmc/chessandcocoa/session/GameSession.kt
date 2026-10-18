@@ -223,9 +223,12 @@ class GameSession(
     /** Clears the error. An opponent move that failed is tried again, so the game never stalls on it. */
     fun dismissError() {
         _state.update { it.copy(error = null) }
+        if (_state.value.phase != Phase.OPPONENT_THINKING) return
 
         // A failing job publishes its error before it finishes restoring the board, so the
         // retry waits for that job; a job started since then already carries the game on.
+        // The app's scope is main-confined, so of two quick dismissals only the first retries:
+        // its continueGame replaces work before the second checks it.
         val failed = work
         scope.launch {
             failed?.join()
