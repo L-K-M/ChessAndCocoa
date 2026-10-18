@@ -6,6 +6,7 @@ import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
+import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
 import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
 import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
@@ -52,7 +53,11 @@ object Reviews {
             val parent = game.truncate(assessment.ply)
             val prior = record.decisions.lastOrNull { it.ply == assessment.ply - 1 }
             val plan = prior?.plan
-            val claims = ClaimBuilder.forHumanMove(parent, assessment, prior, plan, emptyList())
+            // Saved assessments need the same evidence checks as live feedback.
+            val claims = ClaimVerifier.verified(
+                ClaimBuilder.forHumanMove(parent, assessment, prior, plan, emptyList()),
+                parent.play(assessment.move),
+            )
             val position = parent.current
             val label = Renderer.moveLabel(position.fullmoveNumber, position.sideToMove == Side.WHITE, assessment.san)
             val event = TeachingPolicy.select(claims, reviewPreferences, "review-${assessment.ply}", assessment.ply + 1, record.revision, label)

@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package ch.lkmc.chessandcocoa.coach
 
+import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
+import ch.lkmc.chessandcocoa.coach.assess.TacticalFinding
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
+import ch.lkmc.chessandcocoa.coach.render.Renderer
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
 import ch.lkmc.chessandcocoa.coach.teach.HintLevel
@@ -89,7 +92,7 @@ class CoachGameTest {
     @Test
     fun comparisonEvidenceSurvivesSavingAndAnAbandonedBranch() = runBlocking {
         val coach = Coach(TestEngine.searcher())
-        val before = coach.newGame("pawn", Side.WHITE, Difficulty.STEADY, 1, 0, "6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1")
+        val before = coach.newGame("pawn", Side.WHITE, Difficulty.STEADY, 1, 0, PAWN_FEN)
         val result = coach.playHumanMove(before, before.game.move("a3"), preferences, 0)
         val event = assertNotNull(result.event)
         assertNotNull(event.alternative)
@@ -97,14 +100,37 @@ class CoachGameTest {
         val restored = json.decodeFromString(GameRecord.serializer(), json.encodeToString(GameRecord.serializer(), result.record))
         assertEquals(result.record, restored)
         assertTrue(restored.events.single().claims.all { ClaimVerifier.verify(it, restored.game) })
+        assertTrue(coach.review(restored).moments.single().text.contains("fxe4"))
         val takenBack = coach.takeBack(restored, 0)
         assertEquals(0, takenBack.ply)
         assertTrue(takenBack.events.isEmpty())
         assertEquals(event.alternative, takenBack.abandoned.single().events.single().alternative)
     }
 
+    @Test
+    fun reviewRejectsInvalidSavedRecaptureEvidence() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val before = coach.newGame("pawn", Side.WHITE, Difficulty.STEADY, 1, 0, PAWN_FEN)
+        val result = coach.playHumanMove(before, before.game.move("a3"), preferences, 0)
+        val assessment = result.record.assessments.single()
+        val finding = assessment.tactics.filterIsInstance<TacticalFinding.LeavesPieceExposed>().single()
+        val quality = assertNotNull(result.event).claims.filterIsInstance<Claim.MoveQuality>().single()
+
+        // Damaged saves can contain a short line or a legal line with no recapture.
+        val invalidLines = listOf(finding.recaptureLine.take(1), finding.recaptureLine.take(2) + Move.parseUci("f3f4"))
+        invalidLines.forEach { line ->
+            val invalid = assessment.copy(tactics = listOf(finding.copy(recaptureLine = line)))
+            val record = result.record.copy(assessments = listOf(invalid))
+            val restored = json.decodeFromString(GameRecord.serializer(), json.encodeToString(GameRecord.serializer(), record))
+            val review = coach.review(restored)
+            assertEquals(1, review.humanMoves)
+            assertEquals(Renderer.render(quality), review.moments.single().text)
+        }
+    }
+
     private companion object {
         const val PLIES = 24
         const val HINT_PLY = 3
+        const val PAWN_FEN = "6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1"
     }
 }
