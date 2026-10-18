@@ -158,13 +158,17 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
         evidence = Evidence(event, session.evidence(event))
     }
 
+    // Only the player's turn carries defenders. The selection clears a frame after the phase
+    // changes, and until then a board waiting for a hint must not read as "not protected".
+    val inspected = selected?.takeIf { state.phase == Phase.HUMAN_TURN }
+
     // Only events about the position on the board mark it; older ones replay in "Show me why".
     val liveMarks: List<MarkedSquare> = buildList {
         if (!feedbackHidden) state.events.filter { it.ply == record.ply }.forEach { addAll(it.marks) }
         state.hint?.let { addAll(it.marks) }
-        selected?.let { square -> liveBoard.defenders[square].orEmpty().forEach { add(MarkedSquare(it, SquareRole.DEFENDER)) } }
+        inspected?.let { square -> liveBoard.defenders[square].orEmpty().forEach { add(MarkedSquare(it, SquareRole.DEFENDER)) } }
     }
-    val protection = selected?.let { square ->
+    val protection = inspected?.let { square ->
         liveBoard.pieces[square]?.let { piece ->
             Protection(square, piece, liveBoard.defenders[square].orEmpty().mapNotNull { defender -> liveBoard.pieces[defender]?.let { defender to it } })
         }

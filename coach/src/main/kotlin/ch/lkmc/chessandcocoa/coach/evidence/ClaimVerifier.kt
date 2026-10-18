@@ -8,7 +8,10 @@ import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
 import ch.lkmc.chessandcocoa.coach.decide.Obligation
 import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
+import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
+import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
 import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
+import ch.lkmc.chessandcocoa.coach.plan.Subgoal
 
 /**
  * Re-derives claims from their own evidence (concept Section 16.4): every
@@ -29,9 +32,22 @@ object ClaimVerifier {
         if (Obligation.IN_CHECK in decision.obligations && !before.isCheck()) return false
 
         val plan = decision.plan ?: return decision.selectionBasis != SelectionBasis.PLAN
-        return decision.selectionBasis == SelectionBasis.PLAN && plan.owner == decision.side &&
+        val recorded = decision.selectionBasis == SelectionBasis.PLAN && plan.owner == decision.side &&
             plan.status == PlanStatus.ACTIVE && plan.current.ply == decision.ply &&
             plan.current.action?.move == decision.move && decision.planAssessment?.holds == true
+        return recorded && (plan.current.action?.subgoal != Subgoal.STRIKE || strikes(plan, decision.move, before))
+    }
+
+    /** A strike is worded as done (Renderer.intent), so the board must show it: the target taken, the square struck, the pawn promoted. */
+    private fun strikes(plan: PlanInstance, move: Move, before: Position): Boolean {
+        val target = plan.current.targetSquare
+        return when (plan.family) {
+            PlanFamily.WIN_WEAK_UNIT, PlanFamily.INVADE_OPEN_FILE ->
+                before.isCapture(move) && before.capturedSquare(move) == target &&
+                    (plan.target.pieceType == null || before.capturedPiece(move)?.type == plan.target.pieceType)
+            PlanFamily.ATTACK_KING_SQUARE -> move.to == target
+            PlanFamily.PROMOTE_PASSED_PAWN -> move.from == target && move.promotion != null
+        }
     }
 
     /** [game] is the live game the claims describe; continuations must start inside its history. */
