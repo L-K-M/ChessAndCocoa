@@ -10,6 +10,7 @@ import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.evidence.Continuation
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.facts.Facts
 
 /**
  * Everything the board needs to draw one position, computed by the session
@@ -24,6 +25,12 @@ data class BoardSnapshot(
     val checkSquare: Square?,
     /** Legal moves by origin square; empty when the player may not move. */
     val legalMoves: Map<Square, List<Move>>,
+    /**
+     * How each piece is protected: for every occupied square, the squares of
+     * its own side's pieces that defend it, cheapest first. Empty when the
+     * player may not move.
+     */
+    val defenders: Map<Square, List<Square>>,
 ) {
     companion object {
         fun of(position: Position, orientation: Side, lastMove: Move?, playable: Boolean): BoardSnapshot = BoardSnapshot(
@@ -33,7 +40,13 @@ data class BoardSnapshot(
             lastMove = lastMove,
             checkSquare = if (position.isCheck()) position.kingSquare(position.sideToMove) else null,
             legalMoves = if (playable) position.legalMoves().groupBy { it.from } else emptyMap(),
+            defenders = if (playable) defenders(position) else emptyMap(),
         )
+
+        /** The coach's own definition (a pinned piece only defends along its pin), so the board agrees with the explanations. */
+        private fun defenders(position: Position): Map<Square, List<Square>> = position.pieces().keys.associateWith { square ->
+            Facts.defenders(position, square).sortedWith(compareBy({ position.pieceAt(it)?.type?.ordinal }, { it.index }))
+        }
 
         fun of(game: Game, orientation: Side, playable: Boolean): BoardSnapshot =
             of(game.current, orientation, game.moves.lastOrNull(), playable)

@@ -56,6 +56,7 @@ import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.EvidenceFrame
 import ch.lkmc.chessandcocoa.session.EvidenceLine
@@ -141,7 +142,8 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
                     session.play(moves.single())
                 }
                 moves.size > 1 -> promotion = moves
-                else -> selected = if (square != from && currentBoard.legalMoves.containsKey(square)) square else null
+                // Any piece can be selected to see how it is protected; the player's own also show their moves.
+                else -> selected = if (square != from && square in currentBoard.pieces) square else null
             }
         }
     }
@@ -151,10 +153,20 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
         evidence = Evidence(event, session.evidence(event))
     }
 
+    // Only the player's turn carries defenders. The selection clears a frame after the phase
+    // changes, and until then a board waiting for a hint must not read as "not protected".
+    val inspected = selected?.takeIf { state.phase == Phase.HUMAN_TURN }
+
     // Only events about the position on the board mark it; older ones replay in "Show me why".
     val liveMarks: List<MarkedSquare> = buildList {
         if (!feedbackHidden) state.events.filter { it.ply == record.ply }.forEach { addAll(it.marks) }
         state.hint?.let { addAll(it.marks) }
+        inspected?.let { square -> liveBoard.defenders[square].orEmpty().forEach { add(MarkedSquare(it, SquareRole.DEFENDER)) } }
+    }
+    val protection = inspected?.let { square ->
+        liveBoard.pieces[square]?.let { piece ->
+            Protection(square, piece, liveBoard.defenders[square].orEmpty().mapNotNull { defender -> liveBoard.pieces[defender]?.let { defender to it } })
+        }
     }
 
     val shown = evidence
@@ -208,6 +220,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
             CoachPanel(
                 state = state,
                 marks = liveMarks,
+                protection = protection,
                 feedbackHidden = feedbackHidden,
                 onToggleFeedback = { feedbackHidden = !feedbackHidden },
                 onShowWhy = showWhy,

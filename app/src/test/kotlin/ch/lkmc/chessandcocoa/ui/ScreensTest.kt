@@ -526,6 +526,49 @@ class ScreensTest {
     }
 
     @Test
+    fun tappingAnyPieceShowsHowItIsProtected() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = SCHOLAR_FEN)
+        show { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+
+        // The opponent's pieces can be inspected too.
+        compose.onNodeWithContentDescription("c4, white bishop").performClick()
+        compose.onNodeWithText("White bishop on c4").assertIsDisplayed()
+        compose.onNodeWithText("Not protected by any piece.").assertIsDisplayed()
+
+        // So can a piece that cannot move; its defenders are marked on the board.
+        compose.onNodeWithContentDescription("e5, black pawn").performClick()
+        compose.onNodeWithText("Black pawn on e5").assertIsDisplayed()
+        compose.onNodeWithText("Protected by 1 piece:").assertIsDisplayed()
+        compose.onNodeWithText("black knight on c6").assertIsDisplayed()
+        compose.onNodeWithContentDescription("c6, black knight").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "defender"))
+        compose.onRoot().captureRoboImage(shot("piece-protection"))
+
+        // Tapping it again clears the selection, and with it the note.
+        compose.onNodeWithContentDescription("e5, black pawn").performClick()
+        compose.onNodeWithText("Black pawn on e5").assertDoesNotExist()
+        assertTrue(session.state.value.record!!.hints.isEmpty(), "inspecting a piece is not a hint")
+    }
+
+    @Test
+    fun aBoardWaitingForAHintNeverCallsASelectedPieceUnprotected() {
+        val session = engineSession()
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY, startFen = SCHOLAR_FEN)
+        show { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.onNodeWithContentDescription("e5, black pawn").performClick()
+        compose.onNodeWithText("Protected by 1 piece:").assertIsDisplayed()
+
+        // The board takes no moves while the hint loads, so it carries no defenders; the first frame must not read that as none.
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { session.hint() }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithText("Not protected by any piece.").assertDoesNotExist()
+        compose.mainClock.autoAdvance = true
+    }
+
+    @Test
     fun aPawnPromotesThroughTheChooser() {
         val session = engineSession()
         session.newGame(SideChoice.WHITE, Difficulty.STEADY, startFen = PROMOTION_FEN)
