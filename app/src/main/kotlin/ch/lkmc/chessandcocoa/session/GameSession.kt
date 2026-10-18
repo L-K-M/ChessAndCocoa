@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -224,11 +225,7 @@ class GameSession(
     fun dismissError() {
         // Only the dismissal that clears an error retries, so a second tap cannot retry a
         // later failure the player has not seen yet.
-        var cleared = false
-        _state.update {
-            cleared = it.error != null
-            it.copy(error = null)
-        }
+        val cleared = _state.getAndUpdate { it.copy(error = null) }.error != null
         if (!cleared || _state.value.phase != Phase.OPPONENT_THINKING) return
 
         // A failing job publishes its error before it finishes restoring the board, so the

@@ -266,7 +266,7 @@ class GameSessionTest {
         withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE } }
 
         // The player has not dismissed this failure yet, so the game waits for them.
-        assertNull(withTimeoutOrNull(SETTLE) { session.state.first { it.phase == Phase.HUMAN_TURN } })
+        assertNull(withTimeoutOrNull(SETTLE_MILLIS) { session.state.first { it.phase == Phase.HUMAN_TURN } })
         session.dismissError()
         assertEquals(1, awaitPhase(session, Phase.HUMAN_TURN).record!!.ply)
     }
@@ -442,8 +442,6 @@ class GameSessionTest {
 
     private companion object {
         const val TIMEOUT = 20_000L
-        /** How long a game that must wait is watched for moving on anyway. */
-        const val SETTLE = 1_000L
         const val SETTLE_MILLIS = 300L
         const val CONCESSION_SEED = 7L
         const val PRACTICE_MOVES = 8
