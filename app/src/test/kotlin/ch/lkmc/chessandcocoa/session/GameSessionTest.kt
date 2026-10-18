@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -227,6 +228,24 @@ class GameSessionTest {
         withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE } }
 
         session.dismissError()
+        val state = awaitPhase(session, Phase.HUMAN_TURN)
+        assertEquals(1, state.record!!.ply)
+    }
+
+    @Test
+    fun anErrorDismissedTheMomentItAppearsStillRetriesTheMove() = runBlocking {
+        val session = session()
+        analyst.failures = 1
+
+        // The failing job publishes its error before it finishes restoring the board. An unconfined
+        // collector dismisses it inside that update, so the job is certainly still running.
+        val dismissed = scope.launch(Dispatchers.Unconfined) {
+            session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE }
+            session.dismissError()
+        }
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        withTimeout(TIMEOUT) { dismissed.join() }
+
         val state = awaitPhase(session, Phase.HUMAN_TURN)
         assertEquals(1, state.record!!.ply)
     }
