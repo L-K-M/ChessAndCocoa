@@ -148,6 +148,11 @@
     <string name="settings_numbers_desc">Adds rough pawn values to explanations.</string>
     <string name="settings_coordinates">Board coordinates</string>
     <string name="settings_contrast">High-contrast board</string>
+    <string name="settings_board_side">Board position</string>
+    <string name="board_side_left">Left</string>
+    <string name="board_side_left_desc">Coaching beside it on the right, in landscape and on wide screens.</string>
+    <string name="board_side_right">Right</string>
+    <string name="board_side_right_desc">Coaching beside it on the left, in landscape and on wide screens.</string>
     <string name="settings_separate_note">These settings never change how strongly I play or how carefully moves are checked.</string>
 
     <!-- About and notices (concept Section 14.4 release gate) -->

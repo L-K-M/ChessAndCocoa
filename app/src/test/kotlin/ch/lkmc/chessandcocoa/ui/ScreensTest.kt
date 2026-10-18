@@ -43,6 +43,7 @@ import ch.lkmc.chessandcocoa.coach.analysis.Searcher
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.render.Renderer
+import ch.lkmc.chessandcocoa.coach.teach.BoardSide
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
 import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.GameReview
@@ -523,6 +524,16 @@ class ScreensTest {
     fun landscapeKeepsTheBoardAndPanelSideBySide() {
         scholarWithKnightSelected()
         compose.onRoot().captureRoboImage(shot("landscape"))
+    }
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-land-xxhdpi")
+    fun landscapePutsTheBoardOnTheRightWhenChosen() {
+        scholarWithKnightSelected(preferences = ExperiencePreferences(boardSide = BoardSide.RIGHT))
+        val board = compose.onNodeWithContentDescription("g8, black knight").getBoundsInRoot()
+        val coaching = compose.onNodeWithText("Your move").getBoundsInRoot()
+        assertTrue(coaching.right <= board.left, "the board should sit right of the coaching")
+        compose.onRoot().captureRoboImage(shot("landscape-board-right"))
     }
 
     @Test

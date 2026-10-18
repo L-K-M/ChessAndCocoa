@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import ch.lkmc.chessandcocoa.R
+import ch.lkmc.chessandcocoa.coach.teach.BoardSide
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
 import ch.lkmc.chessandcocoa.coach.teach.DisclosureSetting
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
@@ -92,6 +93,18 @@ fun SettingsScreen(preferences: ExperiencePreferences, onChange: (ExperiencePref
                     Toggle(stringResource(R.string.settings_coordinates), preferences.showCoordinates) { onChange(preferences.copy(showCoordinates = it)) }
                     GroupDivider()
                     Toggle(stringResource(R.string.settings_contrast), preferences.highContrastBoard, swatch = CocoaTheme.colors.highContrastBoard) { onChange(preferences.copy(highContrastBoard = it)) }
+                    GroupDivider()
+                    GroupTitle(stringResource(R.string.settings_board_side))
+                    Column(Modifier.selectableGroup()) {
+                        BoardSide.entries.forEach { side ->
+                            Choice(
+                                selected = preferences.boardSide == side,
+                                label = stringResource(boardSideLabel(side)),
+                                description = stringResource(boardSideDescription(side)),
+                                onSelect = { onChange(preferences.copy(boardSide = side)) },
+                            )
+                        }
+                    }
                 }
 
                 Row(Modifier.padding(vertical = Space.l), verticalAlignment = Alignment.Top) {
@@ -194,6 +207,16 @@ private fun disclosureDescription(setting: DisclosureSetting): Int = when (setti
     DisclosureSetting.WITH_MOVE -> R.string.disclosure_with_move_desc
     DisclosureSetting.AFTER_CHOICE -> R.string.disclosure_after_desc
     DisclosureSetting.REVIEW_ONLY -> R.string.disclosure_review_desc
+}
+
+private fun boardSideLabel(side: BoardSide): Int = when (side) {
+    BoardSide.LEFT -> R.string.board_side_left
+    BoardSide.RIGHT -> R.string.board_side_right
+}
+
+private fun boardSideDescription(side: BoardSide): Int = when (side) {
+    BoardSide.LEFT -> R.string.board_side_left_desc
+    BoardSide.RIGHT -> R.string.board_side_right_desc
 }
 
 private val ROW_HEIGHT = 56.dp
