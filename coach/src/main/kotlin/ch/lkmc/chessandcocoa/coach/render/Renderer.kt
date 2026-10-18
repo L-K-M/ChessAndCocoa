@@ -3,8 +3,11 @@ package ch.lkmc.chessandcocoa.coach.render
 
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
 import ch.lkmc.chessandcocoa.chess.PieceType
+import ch.lkmc.chessandcocoa.chess.Position
+import ch.lkmc.chessandcocoa.coach.decide.ConsiderationOutcome
 import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
 import ch.lkmc.chessandcocoa.coach.decide.Obligation
+import ch.lkmc.chessandcocoa.coach.decide.PlanConsideration
 import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
 import ch.lkmc.chessandcocoa.coach.assess.ImpactKind
 import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
@@ -25,8 +28,12 @@ enum class NumberDetail { HIDDEN, SHOWN }
  */
 object Renderer {
 
-    /** Present-tense intent from a verified frozen decision, never from later analysis. */
-    fun intent(decision: DecisionRecord): String {
+    /**
+     * Present-tense intent from a verified frozen decision, never from later
+     * analysis. [turnedDown] is a plan the decision tested and rejected, as
+     * `ClaimVerifier.turnedDownPlan` checked it.
+     */
+    fun intent(decision: DecisionRecord, turnedDown: PlanConsideration? = null): String {
         val plan = decision.plan
         if (plan != null) {
             val target = plan.current.targetSquare
@@ -40,16 +47,34 @@ object Renderer {
             return if (decision.planIsReason) "I chose this move to $goal." else "This move also fits my plan to $goal."
         }
 
+        // True of every legal move here, so a deliberate concession in check reads like any other reply.
+        if (Obligation.FORCED_MOVE in decision.obligations) return "This was my only legal move."
+        if (Obligation.IN_CHECK in decision.obligations) return "I need to get my king out of check."
+
         return when (decision.selectionBasis) {
-            SelectionBasis.IMMEDIATE_OBLIGATION -> when {
-                Obligation.FORCED_MOVE in decision.obligations -> "This was my only legal move."
-                Obligation.IN_CHECK in decision.obligations -> "I need to get my king out of check."
-                else -> "I am responding to a threat before pursuing a longer plan."
-            }
+            SelectionBasis.IMMEDIATE_OBLIGATION -> "I am responding to a threat before pursuing a longer plan."
             SelectionBasis.TACTICAL_OPPORTUNITY -> "I chose a tactical opportunity rather than a longer plan."
-            // Deliberate concessions are disclosed only in review, not disguised as plans.
-            else -> "I have no longer plan to explain for this move."
+            // Deliberate concessions are disclosed only in review, not disguised as plans: they share these words.
+            else -> turnedDown?.let { "${setAside(it, decision)} This move is not part of a longer plan." }
+                ?: "None of my plan ideas fit this position, so this move is not part of a longer plan."
         }
+    }
+
+    /** "I looked at a plan to win your pawn on e5, but you would have had a good answer to it." */
+    private fun setAside(turnedDown: PlanConsideration, decision: DecisionRecord): String {
+        val target = turnedDown.target
+        val aim = when (turnedDown.family) {
+            PlanFamily.ATTACK_KING_SQUARE -> "build an attack on $target near your king"
+            PlanFamily.WIN_WEAK_UNIT -> "win your ${name(Position.fromFen(decision.fen).pieceAt(target)?.type)} on $target"
+            PlanFamily.PROMOTE_PASSED_PAWN -> "help my passed pawn on $target toward promotion"
+            PlanFamily.INVADE_OPEN_FILE -> "bring a rook through an open file toward your pawn on $target"
+        }
+        val reason = when (turnedDown.outcome) {
+            ConsiderationOutcome.TOO_COSTLY -> "it would have cost too much here"
+            ConsiderationOutcome.REFUTED -> "you would have had a good answer to it"
+            else -> "I found no safe next step for it"
+        }
+        return "I looked at a plan to $aim, but $reason."
     }
 
     /**
