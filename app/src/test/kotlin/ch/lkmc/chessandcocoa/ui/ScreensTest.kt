@@ -396,7 +396,7 @@ class ScreensTest {
         compose.onNodeWithContentDescription("e4, white pawn").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "target"))
         compose.onNodeWithContentDescription("d5, black pawn").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "attacker"))
         compose.onNodeWithContentDescription("e4, white pawn").assert(hasClickAction().not())
-        compose.onNodeWithText("Next: d5 to e4 (dxe4)").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Next: black pawn from d5 to e4 (dxe4)").performScrollTo().assertIsDisplayed()
         compose.onRoot().captureRoboImage(shot("pawn-loss-evidence"))
 
         compose.onNodeWithText("Next step").performClick()
@@ -410,7 +410,7 @@ class ScreensTest {
         compose.onRoot().captureRoboImage(shot("recapture-defense-evidence"))
         compose.onNodeWithText("Next step").performClick()
         compose.onNodeWithContentDescription("e4, black pawn").assertIsDisplayed()
-        compose.onNodeWithText("Next: f3 to e4 (fxe4)").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Next: white pawn from f3 to e4 (fxe4)").performScrollTo().assertIsDisplayed()
         compose.onRoot().captureRoboImage(shot("recapture-defense-step"))
         compose.onNodeWithText("Next step").performClick()
         compose.onNodeWithContentDescription("e4, white pawn").assertIsDisplayed()
@@ -439,7 +439,7 @@ class ScreensTest {
         val explanation = session.state.value.record!!.events.first { it.ply == 1 }.brief
         compose.onNodeWithText(explanation).performScrollTo().performClick()
         compose.onNodeWithText("Better alternative").performScrollTo().performClick()
-        compose.onNodeWithText("Next: f2 to f3 (f3)").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Next: white pawn from f2 to f3 (f3)").performScrollTo().assertIsDisplayed()
         compose.onRoot().captureRoboImage(shot("recapture-defense-compact-large-text"))
         compose.onNodeWithText("Next step").assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("f3, white pawn").assertIsDisplayed()

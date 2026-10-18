@@ -56,6 +56,7 @@ import ch.lkmc.chessandcocoa.session.EvidenceLine
 import ch.lkmc.chessandcocoa.session.Phase
 import ch.lkmc.chessandcocoa.session.SessionState
 import ch.lkmc.chessandcocoa.ui.board.MarkGlyph
+import ch.lkmc.chessandcocoa.ui.board.pieceName
 import ch.lkmc.chessandcocoa.ui.board.roleLabel
 import ch.lkmc.chessandcocoa.ui.common.NotationChip
 import ch.lkmc.chessandcocoa.ui.common.toneColors
@@ -310,15 +311,18 @@ fun EvidencePanel(event: TeachingEvent, frames: List<EvidenceFrame>, step: Int, 
                 }
             }
         }
+        val frame = frames.getOrNull(step)
         val next = frames.getOrNull(step + 1)
         next?.board?.lastMove?.let { move ->
+            // Name the pre-move piece, including pawns about to promote.
+            val piece = frame?.board?.pieces?.get(move.from) ?: return@let
             Text(
-                stringResource(R.string.evidence_next_move, move.from.name, move.to.name, next.san.orEmpty()),
+                stringResource(R.string.evidence_next_move, pieceName(piece), move.from.name, move.to.name, next.san.orEmpty()),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        val marks = frames.getOrNull(step)?.marks.orEmpty()
+        val marks = frame?.marks.orEmpty()
         if (marks.isNotEmpty()) MarkLegend(marks.map { it.role }.toSet())
 
         event.expanded.forEach { line ->

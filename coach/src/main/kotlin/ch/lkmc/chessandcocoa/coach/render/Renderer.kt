@@ -96,7 +96,7 @@ object Renderer {
             else -> "That move leaves your $piece without enough defenders. $capture"
         }
         val defense = claim.defense?.sans ?: return consequence
-        return "$consequence ${defense[0]} would let you recapture: after ${defense[1]}, you could play ${defense[2]}."
+        return "$consequence ${defense[0]} would let you recapture: if I play ${defense[1]}, you could play ${defense[2]}."
     }
 
     private fun quality(claim: Claim.MoveQuality, numbers: NumberDetail): String {
