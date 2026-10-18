@@ -302,7 +302,7 @@ fun roleLabel(role: SquareRole): Int = when (role) {
 }
 
 @DrawableRes
-fun drawableFor(piece: Piece, artwork: PieceArtwork = PieceArtwork.CERAMIC): Int = when (piece.side) {
+fun drawableFor(piece: Piece, artwork: PieceArtwork): Int = when (piece.side) {
     Side.WHITE -> when (piece.type) {
         PieceType.PAWN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wp else R.drawable.cocoa_piece_wp
         PieceType.KNIGHT -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wn else R.drawable.cocoa_piece_wn

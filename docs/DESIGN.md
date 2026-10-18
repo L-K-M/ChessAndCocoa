@@ -81,9 +81,11 @@ Claims ([`Claims.kt`](../coach/src/main/kotlin/ch/lkmc/chessandcocoa/coach/evide
 
 ### Interface
 
-The standard board and promotion chooser use ivory and espresso ceramic
-pieces; high-contrast boards and their promotion chooser, miniature boards and small side selectors keep
-the original vector silhouettes. The matching cocoa-and-knight mark appears
+The standard board and promotion chooser use porcelain and espresso ceramic
+pieces in an elevated three-quarter view. Cool white porcelain, pearl-grey
+shadows and clear edges distinguish the light pieces from the warm squares.
+High-contrast boards and their promotion chooser, miniature boards and small
+side selectors keep the original vector silhouettes. The cocoa-and-knight mark appears
 on the home and about screens and the launcher. Source artwork, generation
 prompts and asset rebuild commands are in
 [`media-sources/ARTWORK.md`](../media-sources/ARTWORK.md).

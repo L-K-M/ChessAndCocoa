@@ -54,7 +54,7 @@ fun PromotionDialog(
     side: Side,
     onChoose: (Move) -> Unit,
     onDismiss: () -> Unit,
-    artwork: PieceArtwork = PieceArtwork.CERAMIC,
+    artwork: PieceArtwork,
 ) {
     val title = stringResource(R.string.promotion_title)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
