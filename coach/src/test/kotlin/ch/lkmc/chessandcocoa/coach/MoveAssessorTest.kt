@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.coach
 
 import ch.lkmc.chessandcocoa.chess.Game
+import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.coach.analysis.AnalystBudgets
 import ch.lkmc.chessandcocoa.coach.assess.MoveAssessor
 import ch.lkmc.chessandcocoa.coach.assess.QualityCategory
@@ -10,11 +11,15 @@ import ch.lkmc.chessandcocoa.coach.evidence.Claim
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
 import ch.lkmc.chessandcocoa.coach.evidence.ClaimVerifier
 import ch.lkmc.chessandcocoa.coach.render.Renderer
+import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
+import ch.lkmc.chessandcocoa.coach.teach.TeachingPolicy
 import ch.lkmc.chessandcocoa.engine.Score
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class MoveAssessorTest {
 
@@ -36,5 +41,33 @@ class MoveAssessorTest {
         val claims = ClaimVerifier.verified(ClaimBuilder.forHumanMove(parent, assessment, null, null, emptyList()), parent.play(move))
         val exposed = claims.filterIsInstance<Claim.ExposesPiece>().single()
         assertEquals("Your knight on d5 was already in danger, and this move does not save it. I can capture it next: cxd5.", Renderer.render(exposed))
+    }
+
+    @Test
+    fun ignoringAnAttackedPawnExplainsTheLossAndTheRecaptureDefense() = runBlocking {
+        val parent = Game.new(PAWN_FEN)
+        val move = parent.current.parseSan("a3")
+        val assessment = MoveAssessor(TestEngine.searcher(), AnalystBudgets())
+            .assess(parent, move, prior = null, priorPlan = null, planWindowCp = Difficulty.STEADY.planWindowCp, assisted = false)
+
+        val claims = ClaimVerifier.verified(ClaimBuilder.forHumanMove(parent, assessment, null, null, emptyList()), parent.play(move))
+        val exposed = assertNotNull(claims.filterIsInstance<Claim.ExposesPiece>().singleOrNull(), "the pawn loss needs a concrete explanation")
+        assertEquals(PieceType.PAWN, exposed.piece)
+        assertTrue(exposed.alreadyExposed)
+        val text = Renderer.render(exposed)
+        assertTrue("pawn on e4" in text, text)
+        assertTrue("f3" in text && "fxe4" in text, text)
+        val defense = assertNotNull(exposed.defense)
+        assertEquals(listOf("f3", "dxe4", "fxe4"), defense.sans)
+        assertEquals(parent.ply, defense.fromPly)
+        assertEquals(parent.current.fen(), defense.startFen)
+        val event = assertNotNull(TeachingPolicy.select(claims, ExperiencePreferences(), "pawn", 1, 1))
+        assertEquals(text, event.brief)
+        assertEquals(exposed.continuation, event.evidence)
+        assertEquals(defense, event.alternative)
+    }
+
+    private companion object {
+        const val PAWN_FEN = "6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1"
     }
 }

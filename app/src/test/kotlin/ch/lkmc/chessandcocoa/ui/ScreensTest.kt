@@ -10,6 +10,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -32,6 +34,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import ch.lkmc.chessandcocoa.chess.PieceType
+import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.chess.Square
@@ -376,6 +379,74 @@ class ScreensTest {
     }
 
     @Test
+    fun tappingAnExplanationShowsTheThreatAndTheRecaptureDefense() {
+        val session = engineSession()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY, startFen = PAWN_FEN)
+        show { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        compose.onNodeWithContentDescription("a2, white pawn").performClick()
+        compose.onNodeWithContentDescription("a3, empty").performClick()
+        compose.waitUntil(TIMEOUT) { session.state.value.record?.ply == 2 && session.state.value.phase == Phase.HUMAN_TURN }
+        compose.waitForIdle()
+
+        val record = session.state.value.record!!
+        val explanation = record.events.first { it.ply == 1 }.brief
+        compose.onNodeWithText(explanation).performScrollTo().assert(hasClickAction()).performClick()
+        compose.onNodeWithText("Your move").assertIsSelected()
+        compose.onNodeWithContentDescription("e4, white pawn").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "target"))
+        compose.onNodeWithContentDescription("d5, black pawn").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "attacker"))
+        compose.onNodeWithContentDescription("e4, white pawn").assert(hasClickAction().not())
+        compose.onNodeWithText("Next: d5 to e4 (dxe4)").performScrollTo().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("pawn-loss-evidence"))
+
+        compose.onNodeWithText("Next step").performClick()
+        compose.onNodeWithContentDescription("e4, black pawn").assertIsDisplayed()
+        compose.onNodeWithText("Better alternative").performScrollTo().performClick()
+        compose.onNodeWithText("Better alternative").assertIsSelected()
+        compose.onNodeWithContentDescription("e4, white pawn").assertIsDisplayed()
+        compose.onNodeWithContentDescription("a2, white pawn").assertIsDisplayed()
+        compose.onNodeWithText("Next step").performClick()
+        compose.onNodeWithContentDescription("f3, white pawn").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("recapture-defense-evidence"))
+        compose.onNodeWithText("Next step").performClick()
+        compose.onNodeWithContentDescription("e4, black pawn").assertIsDisplayed()
+        compose.onNodeWithText("Next: f3 to e4 (fxe4)").performScrollTo().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("recapture-defense-step"))
+        compose.onNodeWithText("Next step").performClick()
+        compose.onNodeWithContentDescription("e4, white pawn").assertIsDisplayed()
+        compose.onNodeWithContentDescription("f3, empty").assertIsDisplayed()
+
+        compose.onNodeWithText("Your move").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("d5, black pawn").assertIsDisplayed()
+        compose.onNodeWithText("Back to game").performClick()
+        assertEquals(record, session.state.value.record, "exploring changed the live game")
+        compose.onNodeWithText("Take back").performClick()
+        compose.waitUntil(TIMEOUT) { session.state.value.record?.ply == 0 }
+        compose.onNodeWithText("Better alternative").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun comparisonControlsRemainReachableWithLargeText() {
+        val session = engineSession()
+        session.newGame(SideChoice.WHITE, Difficulty.STEADY, startFen = PAWN_FEN)
+        show(Appearance.EVENING, fontScale = LARGEST_FONT) { GameScreen(session, navigation()) }
+        compose.waitUntil(TIMEOUT) { session.state.value.phase == Phase.HUMAN_TURN }
+        session.play(Move.parseUci("a2a3"))
+        compose.waitUntil(TIMEOUT) { session.state.value.record?.ply == 2 && session.state.value.phase == Phase.HUMAN_TURN }
+        compose.waitForIdle()
+
+        val explanation = session.state.value.record!!.events.first { it.ply == 1 }.brief
+        compose.onNodeWithText(explanation).performScrollTo().performClick()
+        compose.onNodeWithText("Better alternative").performScrollTo().performClick()
+        compose.onNodeWithText("Next: f2 to f3 (f3)").performScrollTo().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(shot("recapture-defense-compact-large-text"))
+        compose.onNodeWithText("Next step").assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("f3, white pawn").assertIsDisplayed()
+        compose.onNodeWithText("Back to game").assertIsDisplayed().performClick()
+    }
+
+    @Test
     fun aGameInProgressWithFeedback() {
         val session = engineSession()
         session.newGame(SideChoice.WHITE, Difficulty.STEADY)
@@ -605,5 +676,6 @@ class ScreensTest {
         const val SAVED_FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5"
         const val PROMOTION_FEN = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1"
         const val INTENT_FEN = "6kr/1p3ppp/8/8/8/8/PP1PPPPP/R5K1 w - - 0 1"
+        const val PAWN_FEN = "6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1"
     }
 }

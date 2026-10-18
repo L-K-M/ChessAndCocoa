@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** A whole game through the coach's public API, as the app's session drives it. */
@@ -83,6 +84,23 @@ class CoachGameTest {
 
         val review = coach.review(record)
         assertEquals(record.assessments.size, review.humanMoves)
+    }
+
+    @Test
+    fun comparisonEvidenceSurvivesSavingAndAnAbandonedBranch() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val before = coach.newGame("pawn", Side.WHITE, Difficulty.STEADY, 1, 0, "6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1")
+        val result = coach.playHumanMove(before, before.game.move("a3"), preferences, 0)
+        val event = assertNotNull(result.event)
+        assertNotNull(event.alternative)
+
+        val restored = json.decodeFromString(GameRecord.serializer(), json.encodeToString(GameRecord.serializer(), result.record))
+        assertEquals(result.record, restored)
+        assertTrue(restored.events.single().claims.all { ClaimVerifier.verify(it, restored.game) })
+        val takenBack = coach.takeBack(restored, 0)
+        assertEquals(0, takenBack.ply)
+        assertTrue(takenBack.events.isEmpty())
+        assertEquals(event.alternative, takenBack.abandoned.single().events.single().alternative)
     }
 
     private companion object {

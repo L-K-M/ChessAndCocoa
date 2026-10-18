@@ -95,6 +95,7 @@ object ClaimBuilder {
             marks = listOf(MarkedSquare(finding.square, SquareRole.TARGET), MarkedSquare(finding.capture.from, SquareRole.ATTACKER)),
             continuation = continuation(after, listOf(finding.capture)),
             alreadyExposed = finding.alreadyExposed,
+            defense = finding.recaptureLine.takeIf { it.isNotEmpty() }?.let { continuation(parent, it) },
         )
 
         is TacticalFinding.MissedWin -> Claim.MissedWin(

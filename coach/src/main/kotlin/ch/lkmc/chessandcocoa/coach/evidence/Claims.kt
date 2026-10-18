@@ -112,6 +112,8 @@ sealed interface Claim {
         override val continuation: Continuation,
         /** Rule-checked: the capture was already possible before the move. */
         val alreadyExposed: Boolean = false,
+        /** An alternative that permits a sound recapture if the opponent tries the same capture. */
+        val defense: Continuation? = null,
     ) : Claim {
         override val certainty get() = Certainty.ANALYSIS_SUPPORTED
         override val disclosure get() = Disclosure.NOW

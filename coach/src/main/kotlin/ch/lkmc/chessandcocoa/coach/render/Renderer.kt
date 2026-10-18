@@ -90,11 +90,13 @@ object Renderer {
     private fun exposes(claim: Claim.ExposesPiece): String {
         val piece = "${name(claim.piece)} on ${claim.square}"
         val capture = if (claim.undefended) "I can capture it next: ${claim.captureSan}." else "I can win it with ${claim.captureSan}."
-        return when {
+        val consequence = when {
             claim.alreadyExposed -> "Your $piece was already in danger, and this move does not save it. $capture"
             claim.undefended -> "That move leaves your $piece undefended. $capture"
             else -> "That move leaves your $piece without enough defenders. $capture"
         }
+        val defense = claim.defense?.sans ?: return consequence
+        return "$consequence ${defense[0]} would let you recapture: after ${defense[1]}, you could play ${defense[2]}."
     }
 
     private fun quality(claim: Claim.MoveQuality, numbers: NumberDetail): String {

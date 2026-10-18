@@ -44,9 +44,11 @@ object ClaimVerifier {
             is Claim.AllowsForcedMate -> replay?.last()?.isCheckmate() == true
             is Claim.ExposesPiece -> {
                 val start = replay?.first() ?: return false
-                val capture = claim.continuation.moves.first()
+                val capture = claim.continuation.moves.singleOrNull() ?: return false
                 val captures = start.isCapture(capture) && start.capturedSquare(capture) == claim.square && start.capturedPiece(capture)?.type == claim.piece
-                captures && (!claim.alreadyExposed || couldCaptureBefore(game, claim.continuation.fromPly, capture))
+                captures && start.see(capture) > 0 &&
+                    (!claim.alreadyExposed || couldCaptureBefore(game, claim.continuation.fromPly, capture, start)) &&
+                    (claim.defense == null || recaptureDefense(claim.defense, claim.continuation, start, capture, game))
             }
             is Claim.MissedWin -> !claim.mate || replay?.last()?.isCheckmate() == true
             is Claim.GameOver -> game.outcome()?.reason == claim.reason || claim.reason == OutcomeReason.RESIGNATION
@@ -54,14 +56,31 @@ object ClaimVerifier {
         }
     }
 
+    /** Both branches must concern the same victim; legal moves exclude pinned, impossible recaptures. */
+    private fun recaptureDefense(defense: Continuation, played: Continuation, exposed: Position, capture: Move, game: Game): Boolean {
+        if (defense.fromPly != played.fromPly - 1 || defense.moves.size != RECAPTURE_LINE_LENGTH) return false
+        val positions = replay(defense, game) ?: return false
+        if (defense.moves[1] != capture) return false
+
+        val defended = positions[1]
+        val reply = positions[2]
+        val recapture = defense.moves.last()
+        return defended.capturedSquare(capture) == exposed.capturedSquare(capture) &&
+            defended.capturedPiece(capture) == exposed.capturedPiece(capture) && defended.see(capture) <= 0 &&
+            reply.capturedSquare(recapture) == capture.to && reply.see(recapture) >= 0
+    }
+
     /** [capture] was already legal, with the turn passed, before the move that led to [ply]. */
-    private fun couldCaptureBefore(game: Game, ply: Int, capture: Move): Boolean {
+    private fun couldCaptureBefore(game: Game, ply: Int, capture: Move, exposed: Position): Boolean {
         val before = game.positions.getOrNull(ply - 1)?.passTurn() ?: return false
-        return before.isLegal(capture) && before.isCapture(capture)
+        return before.isLegal(capture) && before.isCapture(capture) &&
+            before.capturedSquare(capture) == exposed.capturedSquare(capture) &&
+            before.capturedPiece(capture) == exposed.capturedPiece(capture) && before.see(capture) > 0
     }
 
     /** Positions along [continuation], or null when it does not start in [game]'s history or a move is illegal. */
     private fun replay(continuation: Continuation, game: Game): List<Position>? {
+        if (continuation.moves.size != continuation.sans.size) return null
         val start = game.positions.getOrNull(continuation.fromPly) ?: return null
         if (start.fen() != continuation.startFen) return null
 
@@ -73,4 +92,6 @@ object ClaimVerifier {
         }
         return positions
     }
+
+    private const val RECAPTURE_LINE_LENGTH = 3
 }

@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.ui.game
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -51,6 +52,7 @@ import ch.lkmc.chessandcocoa.coach.teach.Hint
 import ch.lkmc.chessandcocoa.coach.teach.OpponentIntent
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.EvidenceFrame
+import ch.lkmc.chessandcocoa.session.EvidenceLine
 import ch.lkmc.chessandcocoa.session.Phase
 import ch.lkmc.chessandcocoa.session.SessionState
 import ch.lkmc.chessandcocoa.ui.board.MarkGlyph
@@ -217,12 +219,18 @@ private fun Note(event: TeachingEvent, hidden: Boolean, onShowWhy: () -> Unit, t
         }
         if (hidden) return@Column
 
+        val canShowWhy = event.expanded.isNotEmpty() || event.evidence != null || event.marks.isNotEmpty()
+        val showWhyLabel = stringResource(R.string.feedback_show_why)
         Text(
             event.brief,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(end = Space.s).semantics { liveRegion = LiveRegionMode.Polite },
+            modifier = Modifier
+                .heightIn(min = Space.touchTarget)
+                .then(if (canShowWhy) Modifier.clickable(onClickLabel = showWhyLabel, role = Role.Button, onClick = onShowWhy) else Modifier)
+                .padding(end = Space.s)
+                .semantics { liveRegion = LiveRegionMode.Polite },
         )
-        if (event.expanded.isNotEmpty() || event.evidence != null) {
+        if (canShowWhy) {
             FilledTonalButton(onClick = onShowWhy, modifier = Modifier.heightIn(min = Space.touchTarget)) {
                 Text(stringResource(R.string.feedback_show_why))
                 Icon(painterResource(R.drawable.ic_arrow_forward), contentDescription = null, modifier = Modifier.padding(start = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize))
@@ -269,7 +277,7 @@ fun MarkLegend(roles: Set<SquareRole>, modifier: Modifier = Modifier) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun EvidencePanel(event: TeachingEvent, frames: List<EvidenceFrame>, step: Int, onStep: (Int) -> Unit) {
+fun EvidencePanel(event: TeachingEvent, frames: List<EvidenceFrame>, step: Int, line: EvidenceLine, onStep: (Int) -> Unit, onLine: (EvidenceLine) -> Unit) {
     val (container, content) = toneColors(event.tone)
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter, vertical = Space.s),
@@ -280,8 +288,17 @@ fun EvidencePanel(event: TeachingEvent, frames: List<EvidenceFrame>, step: Int, 
             Text(event.brief, style = MaterialTheme.typography.bodyLarge)
         }
 
+        if (event.alternative != null) {
+            FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
+                StepChip(stringResource(R.string.evidence_your_move), line == EvidenceLine.MAIN) { onLine(EvidenceLine.MAIN) }
+                StepChip(stringResource(R.string.evidence_alternative), line == EvidenceLine.ALTERNATIVE) { onLine(EvidenceLine.ALTERNATIVE) }
+            }
+            if (line == EvidenceLine.ALTERNATIVE) Text(stringResource(R.string.evidence_recapture_example), style = MaterialTheme.typography.bodyMedium)
+        }
+
         if (frames.size > 1) {
-            val start = stringResource(if (event.evidence?.fromPly == event.ply) R.string.evidence_start_after else R.string.evidence_start_before)
+            val continuation = if (line == EvidenceLine.ALTERNATIVE) event.alternative else event.evidence
+            val start = stringResource(if (continuation?.fromPly == event.ply) R.string.evidence_start_after else R.string.evidence_start_before)
             Text(
                 stringResource(R.string.evidence_line_step, step + 1, frames.size),
                 style = MaterialTheme.typography.labelLarge,
@@ -293,7 +310,16 @@ fun EvidencePanel(event: TeachingEvent, frames: List<EvidenceFrame>, step: Int, 
                 }
             }
         }
-        if (step == 0 && event.marks.isNotEmpty()) MarkLegend(event.marks.map { it.role }.toSet())
+        val next = frames.getOrNull(step + 1)
+        next?.board?.lastMove?.let { move ->
+            Text(
+                stringResource(R.string.evidence_next_move, move.from.name, move.to.name, next.san.orEmpty()),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        val marks = frames.getOrNull(step)?.marks.orEmpty()
+        if (marks.isNotEmpty()) MarkLegend(marks.map { it.role }.toSet())
 
         event.expanded.forEach { line ->
             Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.widthIn(max = Space.readingWidth))
