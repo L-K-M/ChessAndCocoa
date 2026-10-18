@@ -56,7 +56,7 @@ class MoveAssessorTest {
         assertTrue(exposed.alreadyExposed)
         val text = Renderer.render(exposed)
         assertTrue("pawn on e4" in text, text)
-        assertTrue("f3" in text && "fxe4" in text, text)
+        assertTrue("f3" in text && "if I play dxe4" in text && "fxe4" in text, text)
         val defense = assertNotNull(exposed.defense)
         assertEquals(listOf("f3", "dxe4", "fxe4"), defense.sans)
         assertEquals(parent.ply, defense.fromPly)

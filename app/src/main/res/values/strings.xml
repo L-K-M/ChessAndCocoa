@@ -98,7 +98,7 @@
     <string name="evidence_your_move">Your move</string>
     <string name="evidence_alternative">Better alternative</string>
     <string name="evidence_recapture_example">If the same capture is tried, you can recapture.</string>
-    <string name="evidence_next_move">Next: %1$s to %2$s (%3$s)</string>
+    <string name="evidence_next_move">Next: %1$s from %2$s to %3$s (%4$s)</string>
 
     <!-- Review -->
     <string name="review_title">Review</string>
