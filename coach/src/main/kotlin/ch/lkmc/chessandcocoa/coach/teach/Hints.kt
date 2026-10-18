@@ -11,6 +11,7 @@ import ch.lkmc.chessandcocoa.coach.plan.PlanAction
 import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
 import ch.lkmc.chessandcocoa.coach.plan.PlanTemplate
 import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
+import ch.lkmc.chessandcocoa.coach.plan.Planner
 import ch.lkmc.chessandcocoa.coach.render.Renderer
 import kotlinx.serialization.Serializable
 
@@ -36,10 +37,15 @@ object Hints {
      * [game] has the human to move; [plan] is the opponent's open episode,
      * [analysis] the analyst's root search of this position.
      */
-    fun hint(game: Game, level: HintLevel, plan: PlanInstance?, analysis: GameSearch): Hint = when (level) {
-        HintLevel.THREAT -> threat(game, plan)
-        HintLevel.IDEA -> idea(game, plan, analysis)
-        HintLevel.MOVE -> move(game, analysis)
+    fun hint(game: Game, level: HintLevel, plan: PlanInstance?, analysis: GameSearch): Hint {
+        // The opponent's last move may have settled its own plan, e.g. by taking the target:
+        // the plan speaks only while it still stands on this board.
+        val standing = plan?.takeIf { it.isOpen }?.let { Planner.revalidate(game, it) }?.takeIf { it.isOpen }
+        return when (level) {
+            HintLevel.THREAT -> threat(game, standing)
+            HintLevel.IDEA -> idea(game, standing, analysis)
+            HintLevel.MOVE -> move(game, analysis)
+        }
     }
 
     private fun threat(game: Game, plan: PlanInstance?): Hint {
