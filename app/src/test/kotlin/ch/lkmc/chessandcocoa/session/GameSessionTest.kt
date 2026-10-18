@@ -27,8 +27,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -229,6 +231,44 @@ class GameSessionTest {
         session.dismissError()
         val state = awaitPhase(session, Phase.HUMAN_TURN)
         assertEquals(1, state.record!!.ply)
+    }
+
+    @Test
+    fun anErrorDismissedTheMomentItAppearsStillRetriesTheMove() = runBlocking {
+        val session = session()
+        analyst.failures = 1
+
+        // The failing job publishes its error before it finishes restoring the board. An unconfined
+        // collector dismisses it inside that update, so the job is certainly still running.
+        val dismissed = scope.launch(Dispatchers.Unconfined) {
+            session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE }
+            session.dismissError()
+        }
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        withTimeout(TIMEOUT) { dismissed.join() }
+
+        val state = awaitPhase(session, Phase.HUMAN_TURN)
+        assertEquals(1, state.record!!.ply)
+    }
+
+    @Test
+    fun aDismissalWithNoErrorShownDoesNotRetryALaterFailure() = runBlocking {
+        val session = session()
+        val gate = CompletableDeferred<Unit>()
+        analyst.gate = gate
+        analyst.failures = 1
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        awaitPhase(session, Phase.OPPONENT_THINKING)
+
+        // A stray dismissal, e.g. the second tap of a double tap, while the opponent still thinks.
+        session.dismissError()
+        gate.complete(Unit)
+        withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE } }
+
+        // The player has not dismissed this failure yet, so the game waits for them.
+        assertNull(withTimeoutOrNull(SETTLE_MILLIS) { session.state.first { it.phase == Phase.HUMAN_TURN } })
+        session.dismissError()
+        assertEquals(1, awaitPhase(session, Phase.HUMAN_TURN).record!!.ply)
     }
 
     @Test
