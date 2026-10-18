@@ -3,8 +3,11 @@ package ch.lkmc.chessandcocoa.coach
 
 import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.chess.Square
+import ch.lkmc.chessandcocoa.coach.decide.ConsiderationOutcome
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.decide.Obligation
+import ch.lkmc.chessandcocoa.coach.decide.PlanConsideration
 import ch.lkmc.chessandcocoa.coach.decide.PlanRole
 import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
 import ch.lkmc.chessandcocoa.coach.evidence.Claim
@@ -112,8 +115,74 @@ class OpponentIntentTest {
     fun movesWithoutAPlanDoNotAcquireAnInventedStrategicReason() = runBlocking {
         val recorded = assertNotNull(opening(Coach(TestEngine.searcher())).lastDecision)
         for (basis in listOf(SelectionBasis.FALLBACK, SelectionBasis.DIFFICULTY_CONCESSION)) {
-            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis)
-            assertEquals("I have no longer plan to explain for this move.", Renderer.intent(decision))
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis, considered = emptyList())
+            assertEquals("None of my plan ideas fit this position, so this move is not part of a longer plan.", Renderer.intent(decision))
+        }
+    }
+
+    @Test
+    fun aPlanTestedAndTurnedDownIsNamedWithItsReasonButNotAsTheMovesPurpose() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val record = opening(coach)
+        val recorded = assertNotNull(record.lastDecision)
+        val b7 = Square.parse("b7")
+        val turnedDown = PlanConsideration("p-weak-b7", PlanFamily.WIN_WEAK_UNIT, b7, ConsiderationOutcome.REFUTED)
+
+        // A deliberate concession reads exactly like the best move, so the reply gets no extra clue.
+        for (basis in listOf(SelectionBasis.FALLBACK, SelectionBasis.DIFFICULTY_CONCESSION)) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis, considered = listOf(turnedDown))
+            val (revealed, intent) = coach.revealOpponentIntent(record.copy(decisions = record.decisions.dropLast(1) + decision), 1)
+            assertEquals(
+                "I looked at a plan to win your pawn on b7, but you would have had a good answer to it. This move is not part of a longer plan.",
+                assertNotNull(intent).text,
+            )
+            assertTrue(turnedDown.episodeId in revealed.revealedEpisodes, "later news about a plan the player has seen may be narrated")
+        }
+
+        // A plan named by a square that no longer holds its target is left out.
+        val stale = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = SelectionBasis.FALLBACK,
+            considered = listOf(turnedDown.copy(target = Square.parse("a5"), outcome = ConsiderationOutcome.TOO_COSTLY)))
+        val (_, intent) = coach.revealOpponentIntent(record.copy(decisions = record.decisions.dropLast(1) + stale), 1)
+        assertEquals("None of my plan ideas fit this position, so this move is not part of a longer plan.", assertNotNull(intent).text)
+    }
+
+    @Test
+    fun aPlanSetAsideIsNamedBeforeAThreatOrATacticButNotInCheck() = runBlocking {
+        val coach = Coach(TestEngine.searcher())
+        val record = opening(coach)
+        val recorded = assertNotNull(record.lastDecision)
+        val turnedDown = PlanConsideration("p-weak-b7", PlanFamily.WIN_WEAK_UNIT, Square.parse("b7"), ConsiderationOutcome.NO_ROUTE)
+        val lookedAt = "I looked at a plan to win your pawn on b7, but I found no safe next step for it."
+
+        // The threat or the tactic stays the reason; the plan set aside is named first, so the player has seen it.
+        val reasons = mapOf(
+            SelectionBasis.IMMEDIATE_OBLIGATION to "I am responding to a threat before pursuing a longer plan.",
+            SelectionBasis.TACTICAL_OPPORTUNITY to "I chose a tactical opportunity rather than a longer plan.",
+        )
+        for ((basis, reason) in reasons) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis,
+                obligations = if (basis == SelectionBasis.IMMEDIATE_OBLIGATION) listOf(Obligation.MATERIAL_THREAT) else emptyList(),
+                considered = listOf(turnedDown))
+            val (revealed, intent) = coach.revealOpponentIntent(record.copy(decisions = record.decisions.dropLast(1) + decision), 1)
+            assertEquals("$lookedAt $reason", assertNotNull(intent).text)
+            assertTrue(turnedDown.episodeId in revealed.revealedEpisodes, "a plan the player was told about counts as seen")
+        }
+
+        // In check or with one legal move, plans are not tested, so none is named.
+        for (obligation in listOf(Obligation.IN_CHECK, Obligation.FORCED_MOVE)) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = SelectionBasis.IMMEDIATE_OBLIGATION,
+                obligations = listOf(obligation), considered = listOf(turnedDown))
+            assertNull(ClaimVerifier.turnedDownPlan(decision, record.game), obligation.name)
+        }
+    }
+
+    @Test
+    fun beingInCheckIsSaidTheSameWayWhateverTheMoveChosen() = runBlocking {
+        val recorded = assertNotNull(opening(Coach(TestEngine.searcher())).lastDecision)
+        for (basis in listOf(SelectionBasis.IMMEDIATE_OBLIGATION, SelectionBasis.DIFFICULTY_CONCESSION)) {
+            val decision = recorded.copy(plan = null, planAssessment = null, planRole = PlanRole.NONE, selectionBasis = basis,
+                obligations = listOf(Obligation.IN_CHECK), considered = emptyList())
+            assertEquals("I need to get my king out of check.", Renderer.intent(decision))
         }
     }
 

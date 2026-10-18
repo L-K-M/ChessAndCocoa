@@ -156,13 +156,14 @@ class Coach(searcher: Searcher, private val budgets: AnalystBudgets = AnalystBud
         if (!ClaimVerifier.verifyIntent(decision, record.game)) return record to null
 
         val before = record.game.positions[decision.ply]
-        val intent = OpponentIntent(decision.id, moveLabel(before, decision.move), Renderer.intent(decision))
+        val turnedDown = ClaimVerifier.turnedDownPlan(decision, record.game)
+        val intent = OpponentIntent(decision.id, moveLabel(before, decision.move), Renderer.intent(decision, turnedDown))
         if (record.ply in record.intentReveals) return record to intent
 
         val revealed = record.copy(
             revision = record.revision + 1,
             intentReveals = record.intentReveals + record.ply,
-            revealedEpisodes = record.revealedEpisodes + listOfNotNull(decision.plan?.episodeId),
+            revealedEpisodes = record.revealedEpisodes + listOfNotNull(decision.plan?.episodeId, turnedDown?.episodeId),
             updatedAtMillis = nowMillis,
         )
         return revealed to intent

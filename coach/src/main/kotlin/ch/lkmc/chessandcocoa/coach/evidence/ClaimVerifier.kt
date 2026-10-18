@@ -4,10 +4,16 @@ package ch.lkmc.chessandcocoa.coach.evidence
 import ch.lkmc.chessandcocoa.chess.Game
 import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.OutcomeReason
+import ch.lkmc.chessandcocoa.chess.Piece
+import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Position
+import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.coach.decide.ConsiderationOutcome
 import ch.lkmc.chessandcocoa.coach.decide.DecisionRecord
 import ch.lkmc.chessandcocoa.coach.decide.Obligation
+import ch.lkmc.chessandcocoa.coach.decide.PlanConsideration
 import ch.lkmc.chessandcocoa.coach.decide.SelectionBasis
+import ch.lkmc.chessandcocoa.coach.facts.Facts
 import ch.lkmc.chessandcocoa.coach.plan.PlanFamily
 import ch.lkmc.chessandcocoa.coach.plan.PlanInstance
 import ch.lkmc.chessandcocoa.coach.plan.PlanStatus
@@ -36,6 +42,30 @@ object ClaimVerifier {
             plan.status == PlanStatus.ACTIVE && plan.current.ply == decision.ply &&
             plan.current.action?.move == decision.move && decision.planAssessment?.holds == true
         return recorded && (plan.current.action?.subgoal != Subgoal.STRIKE || strikes(plan, decision.move, before))
+    }
+
+    /**
+     * The first plan [decision] tested and turned down whose target still
+     * stands where the record names it, for "I looked at a plan to …, but …".
+     * One whose target has moved since its last revision is skipped. Null
+     * when a plan drove the move, or the move was forced or answered check:
+     * plans are not tested then, and the position is the whole reason.
+     */
+    fun turnedDownPlan(decision: DecisionRecord, game: Game): PlanConsideration? {
+        if (decision.plan != null) return null
+        if (decision.obligations.any { it == Obligation.FORCED_MOVE || it == Obligation.IN_CHECK }) return null
+        val before = game.positions.getOrNull(decision.ply) ?: return null
+        return decision.considered.firstOrNull { it.outcome in TURNED_DOWN && namesItsTarget(it, decision.side, before) }
+    }
+
+    private fun namesItsTarget(consideration: PlanConsideration, side: Side, before: Position): Boolean {
+        val piece = before.pieceAt(consideration.target)
+        return when (consideration.family) {
+            PlanFamily.WIN_WEAK_UNIT -> piece != null && piece.side == side.opposite && piece.type != PieceType.KING
+            PlanFamily.INVADE_OPEN_FILE -> piece == Piece(side.opposite, PieceType.PAWN)
+            PlanFamily.PROMOTE_PASSED_PAWN -> piece == Piece(side, PieceType.PAWN)
+            PlanFamily.ATTACK_KING_SQUARE -> consideration.target in Facts.kingZone(before, side.opposite)
+        }
     }
 
     /** A strike is worded as done (Renderer.intent), so the board must show it: the target taken, the square struck, the pawn promoted. */
@@ -110,4 +140,7 @@ object ClaimVerifier {
     }
 
     private const val RECAPTURE_LINE_LENGTH = 3
+
+    /** Considerations that tested a plan and found it wanting, as opposed to skipping or choosing it. */
+    private val TURNED_DOWN = setOf(ConsiderationOutcome.TOO_COSTLY, ConsiderationOutcome.REFUTED, ConsiderationOutcome.NO_ROUTE)
 }
