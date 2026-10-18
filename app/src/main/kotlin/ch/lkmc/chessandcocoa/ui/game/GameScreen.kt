@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,6 +40,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.lkmc.chessandcocoa.R
@@ -57,6 +60,7 @@ import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
 import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
+import ch.lkmc.chessandcocoa.coach.teach.BoardSide
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.EvidenceFrame
 import ch.lkmc.chessandcocoa.session.EvidenceLine
@@ -103,7 +107,8 @@ private class Evidence(val event: TeachingEvent, val frames: List<EvidenceFrame>
  *   [ Hint ]  [ Take back ]
  * ```
  *
- * Landscape and wide, near-square windows put the board on the left and coaching beside it.
+ * Landscape and wide, near-square windows put the board beside the coaching;
+ * the board side setting picks left (the default) or right.
  */
 @Composable
 fun GameScreen(session: GameSession, navigation: GameNavigation) {
@@ -272,7 +277,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
             val roomBelowBoard = maxHeight - maxWidth - TOOLBAR_HEIGHT
             val nearSquare = maxWidth >= TWO_PANE_MIN_WIDTH && roomBelowBoard < STACKED_SCREEN_ROOM
             if (maxWidth > maxHeight || nearSquare) {
-                SideBySideGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions)
+                SideBySideGame(title, subtitle, navigation.onBack, menu, state.preferences.boardSide, boardView, status, panel, actions)
             } else {
                 PortraitGame(title, subtitle, navigation.onBack, menu, boardView, status, panel, actions, state)
             }
@@ -382,6 +387,7 @@ private fun SideBySideGame(
     subtitle: String,
     onBack: () -> Unit,
     menu: @Composable () -> Unit,
+    boardSide: BoardSide,
     board: @Composable (Modifier) -> Unit,
     status: @Composable () -> Unit,
     panel: @Composable (HistoryPlacement) -> Unit,
@@ -390,15 +396,33 @@ private fun SideBySideGame(
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         // The board takes the full height it can, never more than most of the width.
         val side = minOf(maxHeight - Space.m * 2, maxWidth * WIDE_BOARD_SHARE)
-        Row(Modifier.fillMaxSize().padding(start = Space.m), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                board(Modifier.size(side).then(BoardTraversal))
+
+        // LEFT and RIGHT name physical sides, but a Row flips in a right-to-left layout,
+        // so the order in the Row follows the layout direction. The window-edge padding
+        // stays on the board's outer side, whichever slot it takes.
+        val boardFirst = (boardSide == BoardSide.LEFT) == (LocalLayoutDirection.current == LayoutDirection.Ltr)
+        val outerPadding = if (boardFirst) PaddingValues(start = Space.m) else PaddingValues(end = Space.m)
+
+        Row(Modifier.fillMaxSize().padding(outerPadding), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+            val boardPane: @Composable () -> Unit = {
+                Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
+                    board(Modifier.size(side).then(BoardTraversal))
+                }
             }
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                ScreenTopBar(title = title, subtitle = subtitle, onBack = onBack, windowInsets = WindowInsets(0), actions = { menu() })
-                status()
-                Box(Modifier.weight(1f).fillMaxWidth()) { panel(HistoryPlacement.IN_PANEL) }
-                actions()
+            val coachingPane: @Composable () -> Unit = {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    ScreenTopBar(title = title, subtitle = subtitle, onBack = onBack, windowInsets = WindowInsets(0), actions = { menu() })
+                    status()
+                    Box(Modifier.weight(1f).fillMaxWidth()) { panel(HistoryPlacement.IN_PANEL) }
+                    actions()
+                }
+            }
+            if (boardFirst) {
+                boardPane()
+                coachingPane()
+            } else {
+                coachingPane()
+                boardPane()
             }
         }
     }

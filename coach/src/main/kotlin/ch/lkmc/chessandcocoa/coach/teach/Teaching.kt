@@ -15,6 +15,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class CommentaryLevel { QUIET, NORMAL, DETAILED }
 
+/** Which physical side the board sits on where it lays out beside the coaching. */
+@Serializable
+enum class BoardSide { LEFT, RIGHT }
+
 /** When the opponent's intentions are revealed (Section 4.2). */
 @Serializable
 enum class DisclosureSetting {
@@ -41,6 +45,8 @@ data class ExperiencePreferences(
     val showCoordinates: Boolean = true,
     /** A plainer, higher-contrast board for readability (Section 4.5). */
     val highContrastBoard: Boolean = false,
+    /** Where the board sits beside the coaching, in landscape and wide windows. */
+    val boardSide: BoardSide = BoardSide.LEFT,
     val schemaVersion: Int = SCHEMA_VERSION,
 ) {
     companion object {
