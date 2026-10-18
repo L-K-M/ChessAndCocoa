@@ -126,10 +126,9 @@ fun ChessBoard(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(if (detail == BoardDetail.FULL) OUTER_RADIUS else THUMBNAIL_RADIUS))
             .background(frameColor)
-            .padding(frameWidth)
-            .clip(RoundedCornerShape(INNER_RADIUS)),
+            .padding(frameWidth),
     ) {
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize().clip(RoundedCornerShape(INNER_RADIUS))) {
             val cell = size.width / BOARD_SIZE
             forEachSquare(board.orientation) { square, row, column ->
                 val topLeft = Offset(column * cell, row * cell)
@@ -140,17 +139,26 @@ fun ChessBoard(
                     }
                 }
             }
+        }
 
-            // Pieces: resting ones first, then any piece still sliding into place on top.
-            val moving = slides.keys
-            board.pieces.forEach { (square, piece) ->
-                if (square !in moving) drawPiece(pieces.getValue(piece), squareOrigin(square, board.orientation, cell), cell)
+        // Heads may extend into the frame; the rounded outer board still clips the artwork.
+        Canvas(Modifier.fillMaxSize()) {
+            val cell = size.width / BOARD_SIZE
+            val headroom = frameWidth.toPx()
+            val moving = if (progress.value < 1f) slides.keys else emptySet()
+            // Back ranks first so a foreground piece covers the rank behind it.
+            forEachSquare(board.orientation) { square, row, column ->
+                val piece = board.pieces[square]
+                if (piece != null && square !in moving) {
+                    drawPiece(pieces.getValue(piece), Offset(column * cell, row * cell), cell, artwork, headroom)
+                }
             }
             slides.forEach { (to, from) ->
+                if (to !in moving) return@forEach
                 val piece = board.pieces[to] ?: return@forEach
                 val start = squareOrigin(from, board.orientation, cell)
                 val end = squareOrigin(to, board.orientation, cell)
-                drawPiece(pieces.getValue(piece), start + (end - start) * progress.value, cell)
+                drawPiece(pieces.getValue(piece), start + (end - start) * progress.value, cell, artwork, headroom)
             }
 
             forEachSquare(board.orientation) { square, row, column ->
@@ -194,7 +202,7 @@ private fun SquareLayer(
     roles: Map<Square, List<SquareRole>>,
     onTap: ((Square) -> Unit)?,
 ) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().clip(RoundedCornerShape(INNER_RADIUS))) {
         val cell = maxWidth / BOARD_SIZE
         Column {
             for (row in 0 until BOARD_SIZE) {
@@ -400,10 +408,22 @@ private fun DrawScope.drawCoordinates(
     }
 }
 
-private fun DrawScope.drawPiece(painter: Painter, origin: Offset, cell: Float) {
-    val inset = cell * PIECE_INSET
-    translate(origin.x + inset, origin.y + inset) {
-        with(painter) { draw(Size(cell - 2 * inset, cell - 2 * inset)) }
+private fun DrawScope.drawPiece(painter: Painter, origin: Offset, cell: Float, artwork: PieceArtwork, headroom: Float) {
+    if (artwork == PieceArtwork.CLASSIC) {
+        val inset = cell * PIECE_INSET
+        translate(origin.x + inset, origin.y + inset) {
+            with(painter) { draw(Size(cell - 2 * inset, cell - 2 * inset)) }
+        }
+        return
+    }
+
+    val side = cell * CERAMIC_PIECE_SCALE
+    val left = origin.x + (cell - side) / 2
+    val anchoredTop = origin.y + cell * CERAMIC_BOARD_BASELINE - side * CERAMIC_SPRITE_BASELINE
+    // Keep the tallest silhouette whole at the top edge, including during a slide.
+    val top = maxOf(anchoredTop, -headroom + 1.dp.toPx() - side * CERAMIC_SPRITE_TOP)
+    translate(left, top) {
+        with(painter) { draw(Size(side, side)) }
     }
 }
 
@@ -502,6 +522,11 @@ private val INNER_RADIUS = 6.dp
 private val HALO_WIDTH = 2.dp
 private const val HALO_ALPHA = 0.9f
 private const val PIECE_INSET = 0.05f
+private const val CERAMIC_PIECE_SCALE = 1.2f
+private const val CERAMIC_BOARD_BASELINE = 0.92f
+// Normalized source baseline and tallest sprite margin from tools/pieces/build_ceramic.py.
+private const val CERAMIC_SPRITE_BASELINE = 300f / 320f
+private const val CERAMIC_SPRITE_TOP = (300f - 282f) / 320f
 private const val COORDINATE_SIZE = 0.2f
 private const val COORDINATE_PAD = 0.06f
 private const val LAST_MOVE_ALPHA = 0.5f

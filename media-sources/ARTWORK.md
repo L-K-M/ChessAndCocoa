@@ -48,6 +48,13 @@ selectors and the monochrome launcher icon retain the
 [cburnett vectors](pieces/README.md) for readability.
 The original vector generator and its check remain in use.
 
+On full boards, the ceramic canvas draws at 1.2 times the square width,
+with its source baseline anchored near the square's bottom. Tall pieces can
+overlap the square above; back-to-front rendering and top-frame headroom
+preserve depth and complete silhouettes. The renderer's normalized source
+baseline and top margin match the extraction script's 320 px canvas,
+300 px baseline and 282 px king height.
+
 ## Chess set construction prompt
 
 This original generation prompt records construction of `atlas-front.png`,
