@@ -3,7 +3,7 @@
 """Regenerate the launcher icon and home artwork from media-sources/icon.png.
 
 Adaptive icon: the master image is scaled to 80 of the 108 dp canvas so the
-launcher mask never shows its square edges and the cup and knight stay
+launcher mask never shows its square edges and the steam knight stays
 inside the visible circle; the background layer is the image's edge colour.
 
 Usage: python3 tools/icons/gen_icons.py

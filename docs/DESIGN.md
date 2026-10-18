@@ -88,8 +88,8 @@ Their bases sit near the bottom of each square, with taller pieces extending
 slightly above it. Pieces draw from back to front in either orientation;
 the top rank uses the frame's headroom to keep silhouettes whole.
 High-contrast boards and their promotion chooser, miniature boards and small
-side selectors keep the original vector silhouettes. The cocoa-and-knight mark appears
-on the home and about screens and the launcher. Source artwork, generation
+side selectors keep the original vector silhouettes. The steam-knight mark appears
+on the home and about screens and the launcher. Piece source artwork, generation
 prompts and asset rebuild commands are in
 [`media-sources/ARTWORK.md`](../media-sources/ARTWORK.md).
 

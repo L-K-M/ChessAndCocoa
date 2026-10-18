@@ -28,10 +28,10 @@ made available here under the Open Database License (ODbL).
 
 ## Chess pieces
 
-The ceramic chess pieces and cocoa-and-knight brand artwork were generated
-with OpenAI's image generator for Chess & Cocoa. Source artwork and prompts
-are in `media-sources/ARTWORK.md` in the source repository and are distributed
-with the project under GPL-3.0-or-later.
+The ceramic chess pieces were generated with OpenAI's image generator for
+Chess & Cocoa. Source artwork and prompts are in `media-sources/ARTWORK.md`
+in the source repository and are distributed with the project under
+GPL-3.0-or-later.
 
 "cburnett" chess pieces by Colin M.L. Burnett, licensed under the GNU
 General Public License, version 2 or later; obtained from

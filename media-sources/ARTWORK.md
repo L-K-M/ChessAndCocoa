@@ -1,7 +1,7 @@
 # Generated artwork
 
-The ceramic chess set and cocoa-and-knight brand mark were created with
-OpenAI's built-in image generator on 2026-10-18 for Chess & Cocoa.
+The ceramic chess set was created with OpenAI's built-in image generator
+on 2026-10-18 for Chess & Cocoa.
 These project assets are distributed with the app under GPL-3.0-or-later.
 
 ## Sources and production assets
@@ -12,12 +12,8 @@ These project assets are distributed with the app under GPL-3.0-or-later.
   view, RGBA atlas, 1086 × 1448; production source for the dark pieces.
 - `pieces/ceramic/atlas.png`: final edit with neutral white porcelain,
   RGBA atlas, 1086 × 1448; production source for the white pieces.
-- `icon.png`: original generated brand mark, 1254 × 1254.
 - `../app/src/main/res/drawable-nodpi/cocoa_piece_*.webp`: twelve lossless
   RGBA sprites on 320 × 320 transparent canvases.
-- `../app/src/main/res/drawable-nodpi/hero_cocoa.webp` and
-  `../app/src/main/res/mipmap-*/ic_launcher_foreground.png`: generated
-  derivatives of the brand mark.
 
 The final set was edited from the front-view construction reference to add
 an elevated three-quarter perspective. The edit prompt requested a subtle,
@@ -39,7 +35,6 @@ It does not recolour or redraw the pieces. Run from the repository root:
 ```sh
 python3 tools/pieces/build_ceramic.py
 python3 tools/pieces/build_ceramic.py --check
-python3 tools/icons/gen_icons.py
 ```
 
 The normal board and promotion chooser use the ceramic set. High-contrast
@@ -104,16 +99,4 @@ Input image: edit target is the supplied elevated three-quarter ceramic Staunton
 Primary request: Change ONLY the MATERIAL COLOR of the six WHITE chess pieces. Remove their warm yellow / golden / beige cast. Make them distinctly neutral, cool PORCELAIN WHITE, bright milk-white surfaces with soft pearl-grey and slate-grey dimensional shadows. The midtones should read white and silver-grey, not cream, tan or pale gold. This is important because these sprites will sit on light cream/tan squares and need a clear silhouette. Use controlled neutral grey edge definition and shaded undersides to separate the white porcelain from a cream board, without a cartoon black outline. Restrained soft glaze highlights; luminous white ceramic rather than metallic silver. No blue-colored pieces, no chalky flat white.
 Invariants: Keep EVERY chess piece's identity, shape, geometry, position, relative scale, orientation, elevated almost-isometric three-quarter camera, clean silhouette, material texture, and transparent background unchanged. Keep all six dark espresso pieces visually unchanged; their contrast is already good. Preserve king cross, queen coronet, bishop slit, rook battlements, horse knights facing left toward viewer, spherical pawn heads, and rounded two-ring plinths. Same soft upper-left light direction across the set, but white-piece illumination should be neutral.
 Layout: twelve complete isolated individual sprites in 3 columns and 4 rows. Row1 white king, queen, bishop; row2 white knight, rook, pawn; row3 dark king, queen, bishop; row4 dark knight, rook, pawn. Retain generous true transparent gutters. Do not add or remove sprites. Do not introduce floor, cast shadows beyond objects, scenery, labels, text, numbers, checkerboards, logos, or watermarks. Genuine alpha transparency throughout the background.
-```
-
-## Brand mark prompt
-
-```text
-Use case: stylized-concept
-Asset type: final square launcher icon and small brand mark for the cozy Android game Chess & Cocoa.
-Primary request: a beautifully art-directed, tactile ceramic cocoa cup and an elegant Staunton ivory knight together, sculpted and lit like premium handmade game objects.
-Composition: square image, central compact grouping occupies the middle 62% of width and height so it survives circular Android cropping. On the left of the grouping is a warm ivory porcelain mug full of velvety dark hot cocoa, handle on the left; to the right and slightly behind it is a single warm ivory Staunton horse-head knight on a turned base, facing left toward the cup. Two simple delicate curls of cream steam rise from the cocoa. No other pieces. Strong clear silhouette at tiny size. Cup and knight similar scale; mug slightly lower than knight. Common grounded baseline, no plate.
-Style: exquisite soft 3D ceramic illustration, warm ivory glaze, espresso cocoa, subtle warm highlights, smooth rounded forms, minimal detail, quiet and welcoming rather than ornate. Soft light from upper left. Restrained premium editorial craft.
-Backdrop: rich deep dark cocoa brown, very subtle warm central glow, all four edges uniformly the same deep cocoa brown. Square corners, full bleed opaque background; no drawn rounded-square boundary or outer frame.
-Constraints: no text, no lettering, no labels, no border, no watermark, no beans, no flowers, no scenery, no floating chessboard, no metallic gold, no chocolate splashes. Readable and beautiful as an app icon at 44px.
 ```
