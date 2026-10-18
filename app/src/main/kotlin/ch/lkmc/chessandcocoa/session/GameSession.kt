@@ -5,6 +5,8 @@ import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
+import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.game.GameRecord
 import ch.lkmc.chessandcocoa.coach.teach.ExperiencePreferences
@@ -190,13 +192,21 @@ class GameSession(
      * or, for a point with no line, the one position it explains (after its
      * move). Never the live board, which may have moved on since.
      */
-    fun evidence(event: TeachingEvent): List<EvidenceFrame> {
+    fun evidence(event: TeachingEvent, line: EvidenceLine = EvidenceLine.MAIN): List<EvidenceFrame> {
         val record = _state.value.record ?: return emptyList()
-        event.evidence?.let { return it.frames(record.humanSide, lastMove = null) }
+        val continuation = when (line) {
+            EvidenceLine.MAIN -> event.evidence
+            EvidenceLine.ALTERNATIVE -> event.alternative ?: return emptyList()
+        }
+        continuation?.let {
+            val alternativeMove = it.moves.firstOrNull()?.takeIf { line == EvidenceLine.ALTERNATIVE }
+            val marks = event.marks + listOfNotNull(alternativeMove?.let { move -> MarkedSquare(move.from, SquareRole.MOVED) })
+            return it.frames(record.humanSide, lastMove = null, marks = marks.distinct())
+        }
         if (event.ply !in 0..record.game.ply) return emptyList()
 
         val explained = BoardSnapshot.of(record.game.truncate(event.ply), record.humanSide, playable = false)
-        return listOf(EvidenceFrame(explained, san = null))
+        return listOf(EvidenceFrame(explained, san = null, marks = event.marks))
     }
 
     fun updatePreferences(preferences: ExperiencePreferences) {

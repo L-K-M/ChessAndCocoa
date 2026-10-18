@@ -95,6 +95,10 @@
     <string name="evidence_back_to_game">Back to game</string>
     <string name="evidence_line_step">The line · step %1$d of %2$d</string>
     <string name="evidence_live_untouched">Exploring here does not change your game.</string>
+    <string name="evidence_your_move">Your move</string>
+    <string name="evidence_alternative">Better alternative</string>
+    <string name="evidence_recapture_example">If the same capture is tried, you can recapture.</string>
+    <string name="evidence_next_move">Next: %1$s to %2$s (%3$s)</string>
 
     <!-- Review -->
     <string name="review_title">Review</string>

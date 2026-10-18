@@ -2,6 +2,7 @@
 package ch.lkmc.chessandcocoa.session
 
 import ch.lkmc.chessandcocoa.chess.Move
+import ch.lkmc.chessandcocoa.chess.Game
 import ch.lkmc.chessandcocoa.chess.Piece
 import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Position
@@ -10,6 +11,7 @@ import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.analysis.Searcher
 import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
+import ch.lkmc.chessandcocoa.coach.evidence.ClaimBuilder
 import ch.lkmc.chessandcocoa.coach.evidence.SquareRole
 import ch.lkmc.chessandcocoa.coach.game.Coach
 import ch.lkmc.chessandcocoa.coach.teach.CommentaryLevel
@@ -344,6 +346,47 @@ class GameSessionTest {
         // A note from a damaged save that names no real position shows nothing rather than crashing.
         assertTrue(session.evidence(note.copy(ply = -1)).isEmpty())
         assertTrue(session.evidence(note.copy(ply = replied.ply + 1)).isEmpty())
+    }
+
+    @Test
+    fun replayMarksFollowParticipantsThroughCaptures() {
+        val game = Game.new("6k1/pp3ppp/8/3p4/4P3/8/PP3PPP/6K1 w - - 0 1")
+        val target = MarkedSquare(Square.parse("e4"), SquareRole.TARGET)
+        val attacker = MarkedSquare(Square.parse("d5"), SquareRole.ATTACKER)
+        val defender = MarkedSquare(Square.parse("f2"), SquareRole.MOVED)
+        val line = ClaimBuilder.continuation(game, listOf("f2f3", "d5e4", "f3e4").map(Move::parseUci))
+        val frames = line.frames(Side.WHITE, null, listOf(target, attacker, defender))
+
+        assertEquals(listOf(target, attacker, defender), frames.first().marks)
+        assertTrue(defender.copy(square = Square.parse("f3")) in frames[1].marks)
+        assertEquals(listOf(attacker.copy(square = target.square), defender.copy(square = Square.parse("f3"))), frames[2].marks)
+        assertEquals(listOf(defender.copy(square = target.square)), frames.last().marks)
+        assertTrue(frames.all { it.board.legalMoves.isEmpty() })
+    }
+
+    @Test
+    fun anEmptySquareTargetStaysAnchoredWhenACaptureReachesIt() {
+        val game = Game.new("6k1/pp3ppp/3p4/8/4P3/8/PP3PPP/6K1 w - - 0 1")
+        val target = MarkedSquare(Square.parse("e5"), SquareRole.TARGET)
+        val line = ClaimBuilder.continuation(game, listOf("e4e5", "d6e5").map(Move::parseUci))
+        assertTrue(line.frames(Side.WHITE, null, listOf(target)).all { it.marks == listOf(target) })
+    }
+
+    @Test
+    fun anEnPassantReplayRemovesTheVictimsMarkFromItsOwnSquare() {
+        val game = Game.new("6k1/pp3ppp/8/8/3pP3/8/PP3PPP/6K1 b - e3 0 1")
+        val target = MarkedSquare(Square.parse("e4"), SquareRole.TARGET)
+        val attacker = MarkedSquare(Square.parse("d4"), SquareRole.ATTACKER)
+        val line = ClaimBuilder.continuation(game, listOf(Move.parseUci("d4e3")))
+        assertEquals(listOf(attacker.copy(square = Square.parse("e3"))), line.frames(Side.WHITE, null, listOf(target, attacker)).last().marks)
+    }
+
+    @Test
+    fun aCastlingReplayMovesTheRooksMarkAsWellAsTheKings() {
+        val game = Game.new("4k3/8/8/8/8/8/8/4K2R w K - 0 1")
+        val rook = MarkedSquare(Square.parse("h1"), SquareRole.DEFENDER)
+        val line = ClaimBuilder.continuation(game, listOf(Move.parseUci("e1g1")))
+        assertEquals(listOf(rook.copy(square = Square.parse("f1"))), line.frames(Side.WHITE, null, listOf(rook)).last().marks)
     }
 
     private fun session(seed: Long = 1L): GameSession {

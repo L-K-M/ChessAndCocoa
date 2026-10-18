@@ -71,6 +71,8 @@ sealed interface TacticalFinding {
         val undefended: Boolean,
         /** The same capture was already possible before the move, which only failed to prevent it. */
         val alreadyExposed: Boolean = false,
+        /** A stronger move, the same capture, and a legal recapture. Conditional, not a predicted reply. */
+        val recaptureLine: List<Move> = emptyList(),
     ) : TacticalFinding
 
     /** A clearly better capture or mate was available. */

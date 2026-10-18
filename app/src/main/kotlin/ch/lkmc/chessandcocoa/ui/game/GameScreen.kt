@@ -58,6 +58,7 @@ import ch.lkmc.chessandcocoa.coach.decide.Difficulty
 import ch.lkmc.chessandcocoa.coach.evidence.MarkedSquare
 import ch.lkmc.chessandcocoa.coach.teach.TeachingEvent
 import ch.lkmc.chessandcocoa.session.EvidenceFrame
+import ch.lkmc.chessandcocoa.session.EvidenceLine
 import ch.lkmc.chessandcocoa.session.GameSession
 import ch.lkmc.chessandcocoa.session.Phase
 import ch.lkmc.chessandcocoa.session.SessionState
@@ -82,7 +83,7 @@ data class GameNavigation(
  * "Show me why" for one teaching event: the claim's own continuation,
  * replayed on the main board in place of the live game, which it never touches.
  */
-private class Evidence(val event: TeachingEvent, val frames: List<EvidenceFrame>)
+private class Evidence(val event: TeachingEvent, val frames: List<EvidenceFrame>, val line: EvidenceLine = EvidenceLine.MAIN)
 
 /**
  * The game: board first, one calm coaching panel, voluntary hints, explicit
@@ -159,7 +160,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
     val shown = evidence
     val frame = shown?.frames?.getOrNull(step.coerceIn(0, (shown.frames.size - 1).coerceAtLeast(0)))
     val liveAnimation = rememberAdvance(record.gameId, record.ply + if (state.pendingMove != null) 1 else 0)
-    val stepAnimation = rememberAdvance(shown?.event?.id, step)
+    val stepAnimation = rememberAdvance(shown?.let { it.event.id to it.line }, step)
 
     val boardView: @Composable (Modifier) -> Unit = { modifier ->
         val coordinates = if (state.preferences.showCoordinates) Coordinates.SHOWN else Coordinates.HIDDEN
@@ -170,7 +171,7 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
             ChessBoard(
                 board = frame?.board ?: liveBoard,
                 modifier = modifier,
-                marks = if (step == 0 && frame != null) shown.event.marks else emptyList(),
+                marks = frame?.marks.orEmpty(),
                 arrows = shown.frames.getOrNull(step + 1)?.board?.lastMove?.let(::listOf).orEmpty(),
                 coordinates = coordinates,
                 style = style,
@@ -199,7 +200,10 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
 
     val panel: @Composable (HistoryPlacement) -> Unit = { history ->
         if (shown != null) {
-            EvidencePanel(shown.event, shown.frames, step, onStep = { step = it })
+            EvidencePanel(shown.event, shown.frames, step, shown.line, onStep = { step = it }, onLine = { line ->
+                step = 0
+                evidence = Evidence(shown.event, session.evidence(shown.event, line), line)
+            })
         } else {
             CoachPanel(
                 state = state,

@@ -67,6 +67,8 @@ data class TeachingEvent(
     /** Evidence to replay in "Show me why"; starts at its own game state. */
     val evidence: Continuation?,
     val claims: List<Claim>,
+    /** A verified counterfactual to compare with the consequence of the played move. */
+    val alternative: Continuation? = null,
 )
 
 /** The latest opponent move's verified, recorded purpose, kept readable during the reply. */
@@ -117,6 +119,7 @@ object TeachingPolicy {
             marks = (primary.marks + (if (primary is Claim.PlanImpact) revealed?.marks.orEmpty() else emptyList())).distinct(),
             evidence = primary.continuation ?: secondary.firstNotNullOfOrNull { it.continuation },
             claims = listOf(primary) + secondary,
+            alternative = (primary as? Claim.ExposesPiece)?.defense,
         )
     }
 

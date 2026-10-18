@@ -7,6 +7,7 @@ import ch.lkmc.chessandcocoa.chess.Piece
 import ch.lkmc.chessandcocoa.chess.PieceType
 import ch.lkmc.chessandcocoa.chess.Position
 import ch.lkmc.chessandcocoa.chess.Side
+import ch.lkmc.chessandcocoa.chess.Square
 import ch.lkmc.chessandcocoa.coach.analysis.AnalystBudgets
 import ch.lkmc.chessandcocoa.coach.analysis.GameSearch
 import ch.lkmc.chessandcocoa.coach.analysis.ScoreMath
@@ -177,17 +178,33 @@ class MoveAssessor(private val searcher: Searcher, private val budgets: AnalystB
     /** The engine's expected reply captures a piece the move left exposed, or failed to save. */
     private fun exposedPiece(parent: Game, after: Game, playedLine: PlayedLine, quality: QualityAssessment): TacticalFinding.LeavesPieceExposed? {
         val loss = quality.lossCp ?: return null
-        if (loss < EXPOSED_LOSS_CP) return null
         val reply = playedLine.pv.getOrNull(1) ?: return null
 
         val next = after.current
         if (!next.isLegal(reply) || !next.isCapture(reply) || next.see(reply) <= 0) return null
         val captured = next.capturedPiece(reply) ?: return null
-        if (captured.type.value < PieceType.KNIGHT.value) return null
+        if (loss < minOf(EXPOSED_LOSS_CP, captured.type.value)) return null
 
         val square = next.capturedSquare(reply)!!
         val undefended = Facts.defenders(next, square).isEmpty()
-        return TacticalFinding.LeavesPieceExposed(square, captured, reply, next.san(reply), undefended, alreadyExposed(parent.current, reply, captured))
+        return TacticalFinding.LeavesPieceExposed(
+            square, captured, reply, next.san(reply), undefended,
+            alreadyExposed = alreadyExposed(parent.current, reply, captured),
+            recaptureLine = recaptureDefense(parent.current, quality.bestMove, reply, captured, square),
+        )
+    }
+
+    /** Explain one concrete benefit of the stronger move, without claiming the opponent must capture. */
+    private fun recaptureDefense(before: Position, best: Move, capture: Move, victim: Piece, square: Square): List<Move> {
+        val defended = before.play(best)
+        if (!defended.isLegal(capture) || defended.capturedSquare(capture) != square || defended.capturedPiece(capture) != victim) return emptyList()
+        if (defended.see(capture) > 0) return emptyList()
+
+        val afterCapture = defended.play(capture)
+        val recapture = afterCapture.legalMoves().firstOrNull {
+            afterCapture.capturedSquare(it) == capture.to && afterCapture.see(it) >= 0
+        } ?: return emptyList()
+        return listOf(best, capture, recapture)
     }
 
     /** The same winning capture was there before the move: the move did not cause it, it only failed to prevent it. */
