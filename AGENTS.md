@@ -16,6 +16,7 @@ scripts/build.sh [--debug]                   # APK staged into dist/
 ./gradlew :harness:installDist && harness/build/install/harness/bin/harness --games 12 --difficulty STEADY
 python3 tools/doccheck/checkdocs.py .        # docs: links, anchors, fences, tables
 python3 tools/pieces/svg2vector.py --check   # piece drawables match media-sources/pieces
+python3 tools/pieces/build_ceramic.py --check # ceramic sprites match the generated atlas (Pillow)
 python3 tools/icons/gen_icons.py             # after changing media-sources/icon.png
 python3 tools/fonts/build_fonts.py --check  # bundled fonts match media-sources/fonts (needs fontTools)
 ```

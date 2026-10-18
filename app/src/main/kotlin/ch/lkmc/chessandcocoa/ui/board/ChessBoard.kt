@@ -62,6 +62,9 @@ import ch.lkmc.chessandcocoa.ui.theme.MarkColors
 /** Board looks; readability first (Section 4.5). */
 enum class BoardStyle { COCOA, HIGH_CONTRAST }
 
+/** Classic silhouettes stay clear at small sizes and on the high-contrast board. */
+enum class PieceArtwork { CERAMIC, CLASSIC }
+
 enum class Coordinates { SHOWN, HIDDEN }
 
 /** The live game, or a replayed position ("Show me why") that must never be mistaken for it. */
@@ -107,7 +110,8 @@ fun ChessBoard(
 
     val targets = selected?.let { board.legalMoves[it] }.orEmpty().map { it.to }.toSet()
     val roles = marks.groupBy({ it.square }, { it.role }).mapValues { (_, list) -> list.distinct() }
-    val pieces = piecePainters()
+    val artwork = if (style == BoardStyle.HIGH_CONTRAST || detail == BoardDetail.THUMBNAIL) PieceArtwork.CLASSIC else PieceArtwork.CERAMIC
+    val pieces = piecePainters(artwork)
     val measurer = rememberTextMeasurer(cacheSize = COORDINATE_LABELS)
     val coordinateStyle = MaterialTheme.typography.labelSmall
 
@@ -122,10 +126,9 @@ fun ChessBoard(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(if (detail == BoardDetail.FULL) OUTER_RADIUS else THUMBNAIL_RADIUS))
             .background(frameColor)
-            .padding(frameWidth)
-            .clip(RoundedCornerShape(INNER_RADIUS)),
+            .padding(frameWidth),
     ) {
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize().clip(RoundedCornerShape(INNER_RADIUS))) {
             val cell = size.width / BOARD_SIZE
             forEachSquare(board.orientation) { square, row, column ->
                 val topLeft = Offset(column * cell, row * cell)
@@ -136,17 +139,26 @@ fun ChessBoard(
                     }
                 }
             }
+        }
 
-            // Pieces: resting ones first, then any piece still sliding into place on top.
-            val moving = slides.keys
-            board.pieces.forEach { (square, piece) ->
-                if (square !in moving) drawPiece(pieces.getValue(piece), squareOrigin(square, board.orientation, cell), cell)
+        // Heads may extend into the frame; the rounded outer board still clips the artwork.
+        Canvas(Modifier.fillMaxSize()) {
+            val cell = size.width / BOARD_SIZE
+            val headroom = frameWidth.toPx()
+            val moving = if (progress.value < 1f) slides.keys else emptySet()
+            // Back ranks first so a foreground piece covers the rank behind it.
+            forEachSquare(board.orientation) { square, row, column ->
+                val piece = board.pieces[square]
+                if (piece != null && square !in moving) {
+                    drawPiece(pieces.getValue(piece), Offset(column * cell, row * cell), cell, artwork, headroom)
+                }
             }
             slides.forEach { (to, from) ->
+                if (to !in moving) return@forEach
                 val piece = board.pieces[to] ?: return@forEach
                 val start = squareOrigin(from, board.orientation, cell)
                 val end = squareOrigin(to, board.orientation, cell)
-                drawPiece(pieces.getValue(piece), start + (end - start) * progress.value, cell)
+                drawPiece(pieces.getValue(piece), start + (end - start) * progress.value, cell, artwork, headroom)
             }
 
             forEachSquare(board.orientation) { square, row, column ->
@@ -190,7 +202,7 @@ private fun SquareLayer(
     roles: Map<Square, List<SquareRole>>,
     onTap: ((Square) -> Unit)?,
 ) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().clip(RoundedCornerShape(INNER_RADIUS))) {
         val cell = maxWidth / BOARD_SIZE
         Column {
             for (row in 0 until BOARD_SIZE) {
@@ -253,8 +265,8 @@ private class PreviousBoard {
 }
 
 @Composable
-private fun piecePainters(): Map<Piece, Painter> =
-    Side.entries.flatMap { side -> PieceType.entries.map { Piece(side, it) } }.associateWith { painterResource(drawableFor(it)) }
+private fun piecePainters(artwork: PieceArtwork): Map<Piece, Painter> =
+    Side.entries.flatMap { side -> PieceType.entries.map { Piece(side, it) } }.associateWith { painterResource(drawableFor(it, artwork)) }
 
 @Composable
 private fun squareDescription(square: Square, piece: Piece?): String {
@@ -298,22 +310,22 @@ fun roleLabel(role: SquareRole): Int = when (role) {
 }
 
 @DrawableRes
-fun drawableFor(piece: Piece): Int = when (piece.side) {
+fun drawableFor(piece: Piece, artwork: PieceArtwork): Int = when (piece.side) {
     Side.WHITE -> when (piece.type) {
-        PieceType.PAWN -> R.drawable.piece_wp
-        PieceType.KNIGHT -> R.drawable.piece_wn
-        PieceType.BISHOP -> R.drawable.piece_wb
-        PieceType.ROOK -> R.drawable.piece_wr
-        PieceType.QUEEN -> R.drawable.piece_wq
-        PieceType.KING -> R.drawable.piece_wk
+        PieceType.PAWN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wp else R.drawable.cocoa_piece_wp
+        PieceType.KNIGHT -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wn else R.drawable.cocoa_piece_wn
+        PieceType.BISHOP -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wb else R.drawable.cocoa_piece_wb
+        PieceType.ROOK -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wr else R.drawable.cocoa_piece_wr
+        PieceType.QUEEN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wq else R.drawable.cocoa_piece_wq
+        PieceType.KING -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_wk else R.drawable.cocoa_piece_wk
     }
     Side.BLACK -> when (piece.type) {
-        PieceType.PAWN -> R.drawable.piece_bp
-        PieceType.KNIGHT -> R.drawable.piece_bn
-        PieceType.BISHOP -> R.drawable.piece_bb
-        PieceType.ROOK -> R.drawable.piece_br
-        PieceType.QUEEN -> R.drawable.piece_bq
-        PieceType.KING -> R.drawable.piece_bk
+        PieceType.PAWN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bp else R.drawable.cocoa_piece_bp
+        PieceType.KNIGHT -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bn else R.drawable.cocoa_piece_bn
+        PieceType.BISHOP -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bb else R.drawable.cocoa_piece_bb
+        PieceType.ROOK -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_br else R.drawable.cocoa_piece_br
+        PieceType.QUEEN -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bq else R.drawable.cocoa_piece_bq
+        PieceType.KING -> if (artwork == PieceArtwork.CLASSIC) R.drawable.piece_bk else R.drawable.cocoa_piece_bk
     }
 }
 
@@ -396,10 +408,22 @@ private fun DrawScope.drawCoordinates(
     }
 }
 
-private fun DrawScope.drawPiece(painter: Painter, origin: Offset, cell: Float) {
-    val inset = cell * PIECE_INSET
-    translate(origin.x + inset, origin.y + inset) {
-        with(painter) { draw(Size(cell - 2 * inset, cell - 2 * inset)) }
+private fun DrawScope.drawPiece(painter: Painter, origin: Offset, cell: Float, artwork: PieceArtwork, headroom: Float) {
+    if (artwork == PieceArtwork.CLASSIC) {
+        val inset = cell * PIECE_INSET
+        translate(origin.x + inset, origin.y + inset) {
+            with(painter) { draw(Size(cell - 2 * inset, cell - 2 * inset)) }
+        }
+        return
+    }
+
+    val side = cell * CERAMIC_PIECE_SCALE
+    val left = origin.x + (cell - side) / 2
+    val anchoredTop = origin.y + cell * CERAMIC_BOARD_BASELINE - side * CERAMIC_SPRITE_BASELINE
+    // Keep the tallest silhouette whole at the top edge, including during a slide.
+    val top = maxOf(anchoredTop, -headroom + 1.dp.toPx() - side * CERAMIC_SPRITE_TOP)
+    translate(left, top) {
+        with(painter) { draw(Size(side, side)) }
     }
 }
 
@@ -498,6 +522,11 @@ private val INNER_RADIUS = 6.dp
 private val HALO_WIDTH = 2.dp
 private const val HALO_ALPHA = 0.9f
 private const val PIECE_INSET = 0.05f
+private const val CERAMIC_PIECE_SCALE = 1.2f
+private const val CERAMIC_BOARD_BASELINE = 0.92f
+// Normalized source baseline and tallest sprite margin from tools/pieces/build_ceramic.py.
+private const val CERAMIC_SPRITE_BASELINE = 300f / 320f
+private const val CERAMIC_SPRITE_TOP = (300f - 282f) / 320f
 private const val COORDINATE_SIZE = 0.2f
 private const val COORDINATE_PAD = 0.06f
 private const val LAST_MOVE_ALPHA = 0.5f

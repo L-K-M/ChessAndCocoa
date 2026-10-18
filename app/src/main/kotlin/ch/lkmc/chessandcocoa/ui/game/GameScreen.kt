@@ -72,6 +72,7 @@ import ch.lkmc.chessandcocoa.ui.board.BoardStyle
 import ch.lkmc.chessandcocoa.ui.board.ChessBoard
 import ch.lkmc.chessandcocoa.ui.board.Coordinates
 import ch.lkmc.chessandcocoa.ui.board.MoveAnimation
+import ch.lkmc.chessandcocoa.ui.board.PieceArtwork
 import ch.lkmc.chessandcocoa.ui.common.IconAction
 import ch.lkmc.chessandcocoa.ui.common.ScreenTopBar
 import ch.lkmc.chessandcocoa.ui.theme.Space
@@ -285,7 +286,13 @@ fun GameScreen(session: GameSession, navigation: GameNavigation) {
     }
 
     if (promotion.isNotEmpty()) {
-        PromotionDialog(promotion, liveBoard.sideToMove, onChoose = { move -> promotion = emptyList(); selected = null; session.play(move) }, onDismiss = { promotion = emptyList() })
+        PromotionDialog(
+            promotion,
+            liveBoard.sideToMove,
+            onChoose = { move -> promotion = emptyList(); selected = null; session.play(move) },
+            onDismiss = { promotion = emptyList() },
+            artwork = if (state.preferences.highContrastBoard) PieceArtwork.CLASSIC else PieceArtwork.CERAMIC,
+        )
     }
     if (resignAsked) {
         ResignDialog(onResign = { resignAsked = false; session.resign() }, onDismiss = { resignAsked = false })

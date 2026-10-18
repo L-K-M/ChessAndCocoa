@@ -2,12 +2,15 @@
 package ch.lkmc.chessandcocoa.ui
 
 import android.view.View
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -23,6 +26,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -57,6 +61,7 @@ import ch.lkmc.chessandcocoa.session.GameSummary
 import ch.lkmc.chessandcocoa.session.Phase
 import ch.lkmc.chessandcocoa.session.SideChoice
 import ch.lkmc.chessandcocoa.ui.about.AboutScreen
+import ch.lkmc.chessandcocoa.ui.board.ChessBoard
 import ch.lkmc.chessandcocoa.ui.game.GameNavigation
 import ch.lkmc.chessandcocoa.ui.game.GameScreen
 import ch.lkmc.chessandcocoa.ui.home.HomeActions
@@ -128,6 +133,22 @@ class ScreensTest {
         compose.waitForIdle()
         compose.onNodeWithText("Start game").assertExists()
         captureScreenRoboImage(shot("new-game"))
+    }
+
+    @Test
+    fun ceramicPiecesFromWhiteSide() {
+        val position = Position.fromFen(CERAMIC_OVERLAP_FEN)
+        val board = BoardSnapshot.of(position, Side.WHITE, lastMove = null, playable = false)
+        show { ChessBoard(board, Modifier.size(328.dp).testTag("ceramic-board")) }
+        compose.onNodeWithTag("ceramic-board").captureRoboImage(shot("ceramic-board-white"))
+    }
+
+    @Test
+    fun ceramicPiecesFromBlackSide() {
+        val position = Position.fromFen(CERAMIC_OVERLAP_FEN)
+        val board = BoardSnapshot.of(position, Side.BLACK, lastMove = null, playable = false)
+        show { ChessBoard(board, Modifier.size(328.dp).testTag("ceramic-board")) }
+        compose.onNodeWithTag("ceramic-board").captureRoboImage(shot("ceramic-board-black"))
     }
 
     @Test
@@ -726,6 +747,8 @@ class ScreensTest {
         const val LARGEST_FONT = 2f
         const val SCROLL_TO_END = 100_000f
         val NAVIGATION_BAR = 48.dp
+        // Queens on adjacent ranks expose overlap in front of the back-rank queens and kings.
+        const val CERAMIC_OVERLAP_FEN = "rnbqkbnr/pppqqppp/8/8/8/8/PPPQQPPP/RNBQKBNR w - - 0 1"
         const val SCHOLAR_FEN = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
         const val SAVED_FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5"
         const val PROMOTION_FEN = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1"

@@ -40,6 +40,7 @@ import ch.lkmc.chessandcocoa.chess.Move
 import ch.lkmc.chessandcocoa.chess.Piece
 import ch.lkmc.chessandcocoa.chess.Side
 import ch.lkmc.chessandcocoa.session.SessionError
+import ch.lkmc.chessandcocoa.ui.board.PieceArtwork
 import ch.lkmc.chessandcocoa.ui.board.drawableFor
 import ch.lkmc.chessandcocoa.ui.board.pieceName
 import ch.lkmc.chessandcocoa.ui.board.pieceTypeName
@@ -48,7 +49,13 @@ import ch.lkmc.chessandcocoa.ui.theme.Space
 
 /** The four promotion pieces as large tiles on a light square, each named. */
 @Composable
-fun PromotionDialog(moves: List<Move>, side: Side, onChoose: (Move) -> Unit, onDismiss: () -> Unit) {
+fun PromotionDialog(
+    moves: List<Move>,
+    side: Side,
+    onChoose: (Move) -> Unit,
+    onDismiss: () -> Unit,
+    artwork: PieceArtwork,
+) {
     val title = stringResource(R.string.promotion_title)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
@@ -61,7 +68,7 @@ fun PromotionDialog(moves: List<Move>, side: Side, onChoose: (Move) -> Unit, onD
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                     moves.sortedByDescending { it.promotion?.value ?: 0 }.forEach { move ->
                         val type = move.promotion ?: return@forEach
-                        PromotionTile(Piece(side, type), onClick = { onChoose(move) }, modifier = Modifier.weight(1f))
+                        PromotionTile(Piece(side, type), artwork, onClick = { onChoose(move) }, modifier = Modifier.weight(1f))
                     }
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.action_cancel)) }
@@ -71,7 +78,7 @@ fun PromotionDialog(moves: List<Move>, side: Side, onChoose: (Move) -> Unit, onD
 }
 
 @Composable
-private fun PromotionTile(piece: Piece, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun PromotionTile(piece: Piece, artwork: PieceArtwork, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val name = pieceName(piece)
     Column(
         modifier
@@ -89,7 +96,7 @@ private fun PromotionTile(piece: Piece, onClick: () -> Unit, modifier: Modifier 
             Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(CocoaTheme.colors.board.light).padding(Space.s),
             contentAlignment = Alignment.Center,
         ) {
-            Image(painterResource(drawableFor(piece)), contentDescription = null, modifier = Modifier.size(TILE_PIECE))
+            Image(painterResource(drawableFor(piece, artwork)), contentDescription = null, modifier = Modifier.size(TILE_PIECE))
         }
         Text(stringResource(pieceTypeName(piece.type)).replaceFirstChar(Char::titlecase), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
