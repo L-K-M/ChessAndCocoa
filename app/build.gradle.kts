@@ -15,8 +15,8 @@ android {
         // run far newer Android; 29 keeps the floor modest without old-API code paths.
         minSdk = 29
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
     }
 
     signingConfigs {
