@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -251,6 +252,26 @@ class GameSessionTest {
     }
 
     @Test
+    fun aDismissalWithNoErrorShownDoesNotRetryALaterFailure() = runBlocking {
+        val session = session()
+        val gate = CompletableDeferred<Unit>()
+        analyst.gate = gate
+        analyst.failures = 1
+        session.newGame(SideChoice.BLACK, Difficulty.STEADY)
+        awaitPhase(session, Phase.OPPONENT_THINKING)
+
+        // A stray dismissal, e.g. the second tap of a double tap, while the opponent still thinks.
+        session.dismissError()
+        gate.complete(Unit)
+        withTimeout(TIMEOUT) { session.state.first { it.error == SessionError.ENGINE_UNAVAILABLE } }
+
+        // The player has not dismissed this failure yet, so the game waits for them.
+        assertNull(withTimeoutOrNull(SETTLE) { session.state.first { it.phase == Phase.HUMAN_TURN } })
+        session.dismissError()
+        assertEquals(1, awaitPhase(session, Phase.HUMAN_TURN).record!!.ply)
+    }
+
+    @Test
     fun aTakebackKeepsTheHintShownForThatDecision() = runBlocking {
         val session = session()
         session.newGame(SideChoice.WHITE, Difficulty.STEADY)
@@ -421,6 +442,8 @@ class GameSessionTest {
 
     private companion object {
         const val TIMEOUT = 20_000L
+        /** How long a game that must wait is watched for moving on anyway. */
+        const val SETTLE = 1_000L
         const val SETTLE_MILLIS = 300L
         const val CONCESSION_SEED = 7L
         const val PRACTICE_MOVES = 8
