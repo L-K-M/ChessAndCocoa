@@ -16,6 +16,7 @@ requires_text = [
   "GNU General Public License",
   "Open Database License",
   "incbin",
+  "free and unencumbered software released into the public domain by Dale Weiler",
   "LLVM Exceptions",
 ]
 reason = "Stockfish 19 with incbin and its embedded NNUE network, statically linked with the NDK C++ runtime (app/src/main/cpp/CMakeLists.txt)"
