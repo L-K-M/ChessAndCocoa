@@ -1,0 +1,32 @@
+# android-notices.toml: overrides for scripts/android_notices.py, which CI and
+# release run on the built APK. Every claim needs a reason; unknown keys fail.
+
+# Libraries the Licensee list (assets/app/cash/licensee/artifacts.json) must
+# always contain.
+require = ["org.jetbrains.kotlin:kotlin-stdlib"]
+
+# Every native library and font in the APK must match a claim. requires_text
+# phrases must appear in a shipped notice (--text-entry
+# assets/legal/THIRD_PARTY_NOTICES.md).
+
+[[claim]]
+paths = ["lib/*/libcocoafish.so"]
+requires_text = [
+  "The Stockfish developers",
+  "GNU General Public License",
+  "Open Database License",
+  "incbin",
+  "free and unencumbered software released into the public domain by Dale Weiler",
+  "LLVM Exceptions",
+]
+reason = "Stockfish 19 with incbin and its embedded NNUE network, statically linked with the NDK C++ runtime (app/src/main/cpp/CMakeLists.txt)"
+
+[[claim]]
+paths = ["lib/*/libandroidx.graphics.path.so"]
+requires = ["androidx.graphics:graphics-path"]
+reason = "Native part of the AndroidX graphics-path AAR, covered by its Licensee entry"
+
+[[claim]]
+paths = ["res/**/*.ttf"]
+requires_text = ["Fraunces", "Atkinson Hyperlegible Next", "SIL OPEN FONT LICENSE Version 1.1"]
+reason = "Latin subsets of Fraunces and Atkinson Hyperlegible Next (tools/fonts/build_fonts.py); release builds shorten res/font/ paths"

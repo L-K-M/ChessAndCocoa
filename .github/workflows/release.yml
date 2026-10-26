@@ -78,6 +78,25 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/chess-and-cocoa-${GITHUB_REF_NAME}.apk"
           (cd dist && sha256sum "chess-and-cocoa-${GITHUB_REF_NAME}.apk" > "chess-and-cocoa-${GITHUB_REF_NAME}.apk.sha256")
 
+      # The GPL release gate above, on the exact APK we publish: license text,
+      # notices and Licensee's dependency list inside it, every native library
+      # and font claimed in android-notices.toml, no dependency NOTICE missing.
+      - name: Check license and notices in the APK
+        run: |
+          APK="dist/chess-and-cocoa-${GITHUB_REF_NAME}.apk"
+          python3 -I scripts/android_notices.py check "$APK" --config android-notices.toml \
+            --require-entry assets/legal/LICENSE.txt \
+            --require-entry assets/legal/THIRD_PARTY_NOTICES.md \
+            --require-text 'assets/legal/LICENSE.txt=GNU GENERAL PUBLIC LICENSE' \
+            --require-text 'assets/legal/THIRD_PARTY_NOTICES.md=https://github.com/L-K-M/ChessAndCocoa' \
+            --require-text 'assets/legal/THIRD_PARTY_NOTICES.md=Open Database License' \
+            --require-text 'assets/legal/THIRD_PARTY_NOTICES.md=Colin M.L. Burnett' \
+            --text-entry assets/legal/THIRD_PARTY_NOTICES.md
+          python3 -I scripts/android_notices.py scan "$APK" --config android-notices.toml \
+            --text legal/THIRD_PARTY_NOTICES.md \
+            --fetch-from https://dl.google.com/dl/android/maven2 \
+            --fetch-from https://repo.maven.apache.org/maven2
+
       - name: Upload verified release artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
