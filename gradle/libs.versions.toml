@@ -1,7 +1,8 @@
 [versions]
 # Single pin point for every dependency; no ad-hoc versions in build files.
 # AGP + Gradle are the family-current pair (matches Meltorama).
-# Every dependency must be GPLv3-compatible (concept Section 14.4).
+# Every dependency must be GPLv3-compatible (concept Section 14.4); Licensee
+# enforces it for the app's runtime libraries (app/build.gradle.kts).
 
 agp = "9.4.1"
 kotlin = "2.4.21"
@@ -16,6 +17,7 @@ robolectric = "4.17"
 roborazzi = "1.76.0"
 ndk = "28.2.13676358"
 cmake = "3.22.1"
+licensee = "1.14.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,3 +48,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
+licensee = { id = "app.cash.licensee", version.ref = "licensee" }

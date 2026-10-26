@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.licensee)
 }
 
 android {
@@ -164,6 +165,14 @@ androidComponents {
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(copyLegalAssets, CopyLegalAssets::outputDir)
     }
+}
+
+// Runtime libraries may only declare licenses on this allow-list, which
+// legal/THIRD_PARTY_NOTICES.md covers; any other license fails the build.
+// The resolved list ships as assets/app/cash/licensee/artifacts.json.
+licensee {
+    allow("Apache-2.0")
+    bundleAndroidAsset = true
 }
 // ==== end Legal assets =====================================================
 
