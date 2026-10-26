@@ -79,6 +79,21 @@ shipped.
   writes saves in order on one IO thread; keep both properties when adding
   intents.
 
+## Licensing
+
+- `LICENSE` and `legal/THIRD_PARTY_NOTICES.md` ship in the APK under
+  `assets/legal/` (`CopyLegalAssets`); the About screen opens both.
+- Licensee (`app/build.gradle.kts`) fails the build when a runtime library
+  declares a license outside its allow-list, and bundles the resolved list
+  into the APK. Allow a new license only after adding its text to
+  `legal/THIRD_PARTY_NOTICES.md`, along with any NOTICE file a dependency
+  carries.
+- CI and release run `scripts/android_notices.py` `check` and `scan` on the
+  built APK. A new native library, font or other bundled file needs a
+  `[[claim]]` in `android-notices.toml` tied to its notice text. The script
+  is a shared tool (Unlicense): replace it byte for byte with newer
+  versions, never edit it here.
+
 <!-- shared-rules:start -->
 
 ## Working practices
